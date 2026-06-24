@@ -156,6 +156,148 @@
         </div>
     </div>
 </div>
+
+{% if session.role_name in ['Super Admin', 'HR Manager'] %}
+<!-- HR & Management Control Panel -->
+<div class="row g-4 mt-2 mb-4">
+    <div class="col-12">
+        <div class="glass-card">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="font-weight-bold mb-1"><i class="bi bi-shield-fill-check text-success me-2"></i>HR & Management Directory Overview</h5>
+                    <p class="text-muted small mb-0">Consolidated financial CTC breakdowns and workforce listings.</p>
+                </div>
+                <div class="p-2 border rounded bg-success bg-opacity-10 text-success">
+                    <span class="small d-block text-muted text-center">Total Workforce Annual CTC</span>
+                    <h5 class="mb-0 font-weight-bold">INR {{ "{:,.2f}".format(total_ctc) if total_ctc else "0.00" }}</h5>
+                </div>
+            </div>
+
+            <!-- Tab Headers -->
+            <ul class="nav nav-pills mb-3 bg-light bg-opacity-10 p-1 rounded-pill d-inline-flex border" id="managementTabs">
+                <li class="nav-item">
+                    <button class="nav-link active rounded-pill px-4 small font-weight-bold" data-bs-toggle="pill" data-bs-target="#activeEmps" type="button">Active Staff (Working)</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-pill px-4 small font-weight-bold" data-bs-toggle="pill" data-bs-target="#newEmps" type="button">Newly Joined (Last 30 Days)</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-pill px-4 small font-weight-bold" data-bs-toggle="pill" data-bs-target="#leftEmps" type="button">Former Employees (Left)</button>
+                </li>
+            </ul>
+
+            <!-- Tab Panels -->
+            <div class="tab-content">
+                <!-- Working Staff Panel -->
+                <div class="tab-pane fade show active" id="activeEmps">
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle text-center" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Designation</th>
+                                    <th>Department</th>
+                                    <th>Monthly Gross</th>
+                                    <th>Annual CTC</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if not active_list %}
+                                <tr>
+                                    <td colspan="6" class="text-muted py-3">No active working staff records.</td>
+                                </tr>
+                                {% else %}
+                                {% for emp in active_list %}
+                                <tr>
+                                    <td><span class="font-weight-bold">{{ emp.employee_id }}</span></td>
+                                    <td><a href="{{ url_for('employee.detail_view', emp_id=emp.id) }}" class="text-decoration-none text-dark font-weight-bold">{{ emp.full_name }}</a></td>
+                                    <td>{{ emp.designation or 'Associate' }}</td>
+                                    <td>{{ emp.department.department_name if emp.department else 'N/A' }}</td>
+                                    <td>INR {{ "{:,.2f}".format(emp.salary) if emp.salary else "0.00" }}</td>
+                                    <td><span class="text-success font-weight-bold">INR {{ "{:,.2f}".format(emp.salary * 12) if emp.salary else "0.00" }}</span></td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Newly Joined Panel -->
+                <div class="tab-pane fade" id="newEmps">
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle text-center" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Department</th>
+                                    <th>Designation</th>
+                                    <th>Joining Date</th>
+                                    <th>CTC (Annual)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if not new_list %}
+                                <tr>
+                                    <td colspan="6" class="text-muted py-3">No employees joined within the past 30 days.</td>
+                                </tr>
+                                {% else %}
+                                {% for emp in new_list %}
+                                <tr>
+                                    <td><span class="font-weight-bold">{{ emp.employee_id }}</span></td>
+                                    <td><a href="{{ url_for('employee.detail_view', emp_id=emp.id) }}" class="text-decoration-none text-dark font-weight-bold">{{ emp.full_name }}</a></td>
+                                    <td>{{ emp.department.department_name if emp.department else 'N/A' }}</td>
+                                    <td>{{ emp.designation or 'Associate' }}</td>
+                                    <td>{{ emp.joining_date }}</td>
+                                    <td>INR {{ "{:,.2f}".format(emp.salary * 12) if emp.salary else "0.00" }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Left Panel -->
+                <div class="tab-pane fade" id="leftEmps">
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle text-center" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Designation</th>
+                                    <th>Department</th>
+                                    <th>Exit Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if not inactive_list %}
+                                <tr>
+                                    <td colspan="5" class="text-muted py-3">No former employees recorded.</td>
+                                </tr>
+                                {% else %}
+                                {% for emp in inactive_list %}
+                                <tr>
+                                    <td><span class="font-weight-bold">{{ emp.employee_id }}</span></td>
+                                    <td><span class="text-muted font-weight-bold">{{ emp.full_name }}</span></td>
+                                    <td>{{ emp.designation or 'Associate' }}</td>
+                                    <td>{{ emp.department.department_name if emp.department else 'N/A' }}</td>
+                                    <td><span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-1">Terminated/Left</span></td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

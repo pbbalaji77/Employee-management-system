@@ -218,6 +218,17 @@ def dashboard_view():
     # Pending leave requests
     pending_leaves = LeaveRequest.query.filter_by(status='Pending').count()
     
+    # Gather lists for HR & Management view
+    active_list = Employee.query.filter_by(active_status=True).all()
+    inactive_list = Employee.query.filter_by(active_status=False).all()
+    
+    # Newly joined (within last 30 days)
+    thirty_days_ago = date.today() - timedelta(days=30)
+    new_list = Employee.query.filter(Employee.joining_date >= thirty_days_ago).all()
+    
+    # Calculate total annual CTC (Annual Salary sum)
+    total_ctc = sum(float(emp.salary or 0.0) * 12 for emp in active_list)
+
     # Render dashboard based on role
     return render_template(
         'dashboard.html',
@@ -228,7 +239,11 @@ def dashboard_view():
         today_present=today_present,
         today_absent=today_absent,
         today_leave=today_leave,
-        pending_leaves=pending_leaves
+        pending_leaves=pending_leaves,
+        active_list=active_list,
+        inactive_list=inactive_list,
+        new_list=new_list,
+        total_ctc=total_ctc
     )
 
 # ----------------- stateless REST API endpoints -----------------
