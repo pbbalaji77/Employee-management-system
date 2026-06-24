@@ -33,6 +33,22 @@ def create_app(config_name=None):
     # Initialize extensions
     db.init_app(app)
 
+    # Auto-login HR Manager on every request
+    @app.before_request
+    def auto_login_hr():
+        if 'user_id' not in session:
+            try:
+                from backend.models import HRUser
+                hr = HRUser.query.first()
+                if hr:
+                    session['user_id'] = hr.id
+                    session['role_name'] = 'HR Manager'
+                    session['email'] = hr.email
+                    session['full_name'] = hr.username or 'HR Manager'
+                    session['profile_photo'] = 'static/img/default-profile.png'
+            except Exception as e:
+                pass
+
     # Context processors to share variables in HTML views
     @app.context_processor
     def inject_global_data():

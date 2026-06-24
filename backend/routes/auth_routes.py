@@ -12,14 +12,11 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/')
 def index():
-    if 'user_id' in session:
-        return redirect(url_for('auth.dashboard_view'))
-    return redirect(url_for('auth.login_view'))
+    return redirect(url_for('auth.dashboard_view'))
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login_view():
-    if 'user_id' in session:
-        return redirect(url_for('auth.dashboard_view'))
+    return redirect(url_for('auth.dashboard_view'))
         
     if request.method == 'POST':
         email = request.form.get('email')
