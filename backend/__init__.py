@@ -21,7 +21,7 @@ def create_app(config_name=None):
 
     # Parse and override database path if SQLite to make sure parent folder exists
     db_uri = app.config['SQLALCHEMY_DATABASE_URI']
-    if db_uri.startswith('sqlite:///'):
+    if db_uri.startswith('sqlite:///') and db_uri != 'sqlite:///:memory:':
         db_path = db_uri.replace('sqlite:///', '')
         # Check if relative or absolute path, then make directory
         if not os.path.isabs(db_path):
@@ -40,7 +40,7 @@ def create_app(config_name=None):
         if 'user_id' in session:
             try:
                 from backend.models import Notification
-                unread = Notification.query.filter_by(user_id=session['user_id'], is_read=False).count()
+                unread = Notification.query.filter_by(is_read=False).count()
             except Exception:
                 pass
         return {
@@ -58,6 +58,7 @@ def create_app(config_name=None):
     from backend.routes.document_routes import document_bp
     from backend.routes.report_routes import report_bp
     from backend.routes.ai_routes import ai_bp
+    from backend.routes.settings_routes import settings_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(employee_bp)
@@ -69,6 +70,7 @@ def create_app(config_name=None):
     app.register_blueprint(document_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(ai_bp)
+    app.register_blueprint(settings_bp)
 
     # Error Handlers
     @app.errorhandler(404)

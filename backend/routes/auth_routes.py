@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from backend.database import db
-from backend.models import User, Role, Employee, Department, Attendance, LeaveRequest, Payroll, AuditLog, Notification
+from backend.models import HRUser, Employee, Department, Attendance, LeaveRequest, Payroll, AuditLog, Notification
 from backend.auth import generate_jwt_token, login_required, role_required, token_required, decode_jwt_token
 from backend.services.audit_service import log_action
 from backend.services.email_service import send_password_reset_email
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+from sqlalchemy import func
 import uuid
 
 auth_bp = Blueprint('auth', __name__)
@@ -14,74 +15,6 @@ def index():
     if 'user_id' in session:
         return redirect(url_for('auth.dashboard_view'))
     return redirect(url_for('auth.login_view'))
-
-@auth_bp.route('/signup', methods=['GET', 'POST'])
-def signup_view():
-    if 'user_id' in session:
-        return redirect(url_for('auth.dashboard_view'))
-        
-    departments = Department.query.all()
-    
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        gender = request.form.get('gender')
-        mobile = request.form.get('mobile_number')
-        dept_id = request.form.get('department_id')
-        designation = request.form.get('designation', 'Associate')
-        
-        if not email or not password or not first_name or not last_name:
-            flash('Please fill in all required fields.', 'danger')
-            return render_template('signup.html', departments=departments)
-            
-        # Check if already exists
-        if User.query.filter_by(email=email).first():
-            flash('An account with this email already exists.', 'danger')
-            return render_template('signup.html', departments=departments)
-            
-        # Get Employee role
-        role = Role.query.filter_by(name='Employee').first()
-        if not role:
-            flash('System roles are not initialized.', 'danger')
-            return render_template('signup.html', departments=departments)
-            
-        # Create User
-        user = User(email=email, role_id=role.id, is_active=True, email_verified=False)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.flush()
-        
-        # Import generate_employee_id
-        from backend.routes.employee_routes import generate_employee_id
-        emp_code = generate_employee_id()
-        
-        # Create Employee profile
-        emp = Employee(
-            user_id=user.id,
-            employee_id=emp_code,
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            gender=gender,
-            mobile_number=mobile,
-            department_id=int(dept_id) if dept_id else None,
-            designation=designation,
-            salary=50000.00, # default starting salary
-            joining_date=date.today(),
-            profile_photo='uploads/profiles/default.png',
-            employment_type='Full-Time',
-            active_status=True
-        )
-        db.session.add(emp)
-        db.session.commit()
-        
-        log_action("Self-registered as a new Employee", user.id)
-        flash('Account created successfully! Please log in.', 'success')
-        return redirect(url_for('auth.login_view'))
-        
-    return render_template('signup.html', departments=departments)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login_view():
@@ -93,25 +26,15 @@ def login_view():
         password = request.form.get('password')
         remember = request.form.get('remember') == 'on'
         
-        user = User.query.filter_by(email=email).first()
+        user = HRUser.query.filter_by(email=email).first()
         if user and user.check_password(password):
-            if not user.is_active:
-                flash('Your account is deactivated.', 'danger')
-                return render_template('login.html')
-                
             session['user_id'] = user.id
-            session['role_name'] = user.role.name
+            session['role_name'] = 'HR Manager'
             session['email'] = user.email
             session['jwt_token'] = generate_jwt_token(user)
-            if user.employee:
-                session['employee_id'] = user.employee.id
-                session['employee_code'] = user.employee.employee_id
-                session['full_name'] = user.employee.full_name
-                session['profile_photo'] = user.employee.profile_photo or 'uploads/profiles/default.png'
-            else:
-                session['employee_id'] = None
-                session['full_name'] = "Super Admin"
-                session['profile_photo'] = 'uploads/profiles/default.png'
+            session['employee_id'] = None
+            session['full_name'] = user.username or "HR Manager"
+            session['profile_photo'] = 'static/img/default-profile.png'
                 
             if remember:
                 session.permanent = True
@@ -139,9 +62,8 @@ def logout_view():
 def forgot_password_view():
     if request.method == 'POST':
         email = request.form.get('email')
-        user = User.query.filter_by(email=email).first()
+        user = HRUser.query.filter_by(email=email).first()
         if user:
-            # Generate a temporary token for password reset
             reset_token = str(uuid.uuid4())
             session[f'reset_token_{reset_token}'] = user.id
             send_password_reset_email(user.email, reset_token)
@@ -158,7 +80,7 @@ def reset_password_view():
         return redirect(url_for('auth.login_view'))
         
     user_id = session[f'reset_token_{token}']
-    user = User.query.get(user_id)
+    user = HRUser.query.get(user_id)
     
     if request.method == 'POST':
         password = request.form.get('password')
@@ -185,7 +107,7 @@ def change_password():
     new_password = request.form.get('new_password')
     confirm_password = request.form.get('confirm_password')
     
-    user = User.query.get(session['user_id'])
+    user = HRUser.query.get(session['user_id'])
     if not user.check_password(current_password):
         flash('Incorrect current password.', 'danger')
         return redirect(request.referrer)
@@ -205,7 +127,7 @@ def change_password():
 def dashboard_view():
     # Gather counts and metrics
     total_emp = Employee.query.count()
-    active_emp = Employee.query.filter_by(active_status=True).count()
+    active_emp = Employee.query.filter_by(status='Active').count()
     inactive_emp = total_emp - active_emp
     dept_count = Department.query.count()
     
@@ -219,8 +141,8 @@ def dashboard_view():
     pending_leaves = LeaveRequest.query.filter_by(status='Pending').count()
     
     # Gather lists for HR & Management view
-    active_list = Employee.query.filter_by(active_status=True).all()
-    inactive_list = Employee.query.filter_by(active_status=False).all()
+    active_list = Employee.query.filter_by(status='Active').all()
+    inactive_list = Employee.query.filter_by(status='Inactive').all()
     
     # Newly joined (within last 30 days)
     thirty_days_ago = date.today() - timedelta(days=30)
@@ -229,7 +151,35 @@ def dashboard_view():
     # Calculate total annual CTC (Annual Salary sum)
     total_ctc = sum(float(emp.salary or 0.0) * 12 for emp in active_list)
 
-    # Render dashboard based on role
+    # Fetch birthday and work anniversary reminders
+    # Birthday today or in next 7 days
+    upcoming_birthdays = []
+    upcoming_anniversaries = []
+    
+    for emp in active_list:
+        if emp.date_of_birth:
+            try:
+                bday_this_year = date(today.year, emp.date_of_birth.month, emp.date_of_birth.day)
+            except ValueError:
+                # Handle Feb 29
+                bday_this_year = date(today.year, 3, 1)
+            diff = (bday_this_year - today).days
+            if 0 <= diff <= 7:
+                upcoming_birthdays.append((emp, diff))
+                
+        if emp.joining_date:
+            try:
+                anniv_this_year = date(today.year, emp.joining_date.month, emp.joining_date.day)
+            except ValueError:
+                anniv_this_year = date(today.year, 3, 1)
+            diff = (anniv_this_year - today).days
+            if 0 <= diff <= 7:
+                years = today.year - emp.joining_date.year
+                upcoming_anniversaries.append((emp, diff, years))
+
+    upcoming_birthdays.sort(key=lambda x: x[1])
+    upcoming_anniversaries.sort(key=lambda x: x[1])
+
     return render_template(
         'dashboard.html',
         total_employees=total_emp,
@@ -243,7 +193,9 @@ def dashboard_view():
         active_list=active_list,
         inactive_list=inactive_list,
         new_list=new_list,
-        total_ctc=total_ctc
+        total_ctc=total_ctc,
+        upcoming_birthdays=upcoming_birthdays,
+        upcoming_anniversaries=upcoming_anniversaries
     )
 
 # ----------------- stateless REST API endpoints -----------------
@@ -257,11 +209,8 @@ def api_login():
     if not email or not password:
         return jsonify({'message': 'Missing email or password'}), 400
         
-    user = User.query.filter_by(email=email).first()
+    user = HRUser.query.filter_by(email=email).first()
     if user and user.check_password(password):
-        if not user.is_active:
-            return jsonify({'message': 'User account is deactivated'}), 403
-            
         token = generate_jwt_token(user)
         log_action("Logged in via API", user.id)
         
@@ -274,7 +223,6 @@ def api_login():
 
 @auth_bp.route('/api/logout', methods=['POST'])
 def api_logout():
-    # JWT is stateless, so client deletes token. We just log audit
     auth_header = request.headers.get('Authorization')
     if auth_header and auth_header.startswith('Bearer '):
         token = auth_header.split(" ")[1]
@@ -286,13 +234,13 @@ def api_logout():
 @auth_bp.route('/api/notifications', methods=['GET'])
 @token_required
 def api_get_notifications():
-    notifications = Notification.query.filter_by(user_id=request.user_id).order_by(Notification.created_at.desc()).all()
+    notifications = Notification.query.order_by(Notification.created_at.desc()).all()
     return jsonify([n.to_dict() for n in notifications]), 200
 
 @auth_bp.route('/api/notifications/<int:notif_id>/read', methods=['PUT'])
 @token_required
 def api_mark_notification_read(notif_id):
-    notif = Notification.query.filter_by(id=notif_id, user_id=request.user_id).first_or_404()
+    notif = Notification.query.filter_by(id=notif_id).first_or_404()
     notif.is_read = True
     db.session.commit()
     return jsonify({'message': 'Notification marked as read'}), 200
@@ -315,10 +263,9 @@ def api_dashboard_charts():
     # 3. Gender Distribution
     males = Employee.query.filter(Employee.gender.ilike('male')).count()
     females = Employee.query.filter(Employee.gender.ilike('female')).count()
-    others = Employee.query.filter(Employee.active_status == True).count() - (males + females)
+    others = Employee.query.filter(Employee.status == 'Active').count() - (males + females)
 
     # 4. Hiring Trends (Past 6 months)
-    # Simple month list helper
     today = date.today()
     hiring_labels = []
     hiring_values = []
@@ -326,7 +273,8 @@ def api_dashboard_charts():
         target_date = today - timedelta(days=i*30)
         lbl = target_date.strftime("%B")
         hiring_labels.append(lbl)
-        # Query count of joins in this month
+        
+        # SQLite compatible month/year query
         cnt = Employee.query.filter(
             func.strftime('%Y', Employee.joining_date) == str(target_date.year),
             func.strftime('%m', Employee.joining_date) == f"{target_date.month:02d}"
@@ -351,4 +299,3 @@ def api_dashboard_charts():
             'values': hiring_values
         }
     }), 200
-

@@ -12,7 +12,6 @@ payroll_bp = Blueprint('payroll', __name__)
 
 @payroll_bp.route('/payroll')
 @login_required
-@role_required('Super Admin', 'HR Manager')
 def payroll_view():
     return render_template('payroll.html')
 
@@ -27,9 +26,7 @@ def api_get_payroll():
     
     query = Payroll.query
     
-    if request.user_role == 'Employee':
-        query = query.filter(Payroll.employee_id == request.employee_id)
-    elif employee_id:
+    if employee_id:
         query = query.filter(Payroll.employee_id == int(employee_id))
         
     if month:
@@ -62,27 +59,24 @@ def api_calculate_payroll():
         
     # Salary breakdown logic
     gross = float(emp.salary or 0.0)
-    basic = gross * 0.50  # 50% Basic
-    hra = gross * 0.20    # 20% HRA
-    bonus = float(data.get('bonus', 0.0))
-    incentives = float(data.get('incentives', 0.0))
-    deductions = basic * 0.12 # 12% PF deduction on Basic
-    tax = basic * 0.10        # 10% Tax withholding
+    basic = gross * 0.60  # 60% Basic
+    allowances = gross * 0.40  # 40% Allowances
+    bonus = float(data.get('bonus', 0.0)) + float(data.get('incentives', 0.0))
     
-    net_salary = basic + hra + bonus + incentives - deductions - tax
+    # Deductions: PF (12%) + TDS/Tax (10%) on basic
+    deductions = basic * 0.22
+    
+    net_salary = basic + allowances + bonus - deductions
     
     record = Payroll(
         employee_id=emp.id,
         month=month,
         year=year,
         basic_salary=basic,
-        hra=hra,
-        bonus=bonus,
-        incentives=incentives,
+        allowances=allowances,
+        bonuses=bonus,
         deductions=deductions,
-        tax=tax,
-        net_salary=net_salary,
-        status='Paid'
+        net_salary=net_salary
     )
     
     db.session.add(record)
@@ -94,8 +88,11 @@ def api_calculate_payroll():
     
     db.session.commit()
     
-    # Send Notification Email
-    send_payroll_notification_email(emp.full_name, emp.email, month, year, net_salary)
+    try:
+        send_payroll_notification_email(emp.full_name, emp.email, month, year, net_salary)
+    except Exception as e:
+        print(f"Error sending payroll notification email: {str(e)}")
+        
     log_action(f"Generated Payroll for {emp.employee_id} ({month}/{year})", request.user_id)
     
     return jsonify(record.to_dict()), 201
@@ -112,7 +109,7 @@ def api_generate_all_payroll():
     if not month or not year:
         return jsonify({'message': 'Missing month or year'}), 400
         
-    active_employees = Employee.query.filter_by(active_status=True).all()
+    active_employees = Employee.query.filter_by(status='Active').all()
     count = 0
     
     for emp in active_employees:
@@ -122,27 +119,22 @@ def api_generate_all_payroll():
             continue
             
         gross = float(emp.salary or 0.0)
-        basic = gross * 0.50
-        hra = gross * 0.20
+        basic = gross * 0.60
+        allowances = gross * 0.40
         bonus = 0.0
-        incentives = 0.0
-        deductions = basic * 0.12
-        tax = basic * 0.10
+        deductions = basic * 0.22
         
-        net_salary = basic + hra + bonus + incentives - deductions - tax
+        net_salary = basic + allowances + bonus - deductions
         
         record = Payroll(
             employee_id=emp.id,
             month=month,
             year=year,
             basic_salary=basic,
-            hra=hra,
-            bonus=bonus,
-            incentives=incentives,
+            allowances=allowances,
+            bonuses=bonus,
             deductions=deductions,
-            tax=tax,
-            net_salary=net_salary,
-            status='Paid'
+            net_salary=net_salary
         )
         db.session.add(record)
         db.session.flush()
@@ -150,7 +142,10 @@ def api_generate_all_payroll():
         pdf_rel_path = generate_payslip_pdf(record, emp, os.path.join(current_app.root_path, 'static', 'uploads', 'payslips'))
         record.payslip_path = pdf_rel_path
         
-        send_payroll_notification_email(emp.full_name, emp.email, month, year, net_salary)
+        try:
+            send_payroll_notification_email(emp.full_name, emp.email, month, year, net_salary)
+        except Exception as e:
+            print(f"Error sending payroll notification email: {str(e)}")
         count += 1
         
     db.session.commit()
@@ -162,10 +157,6 @@ def api_generate_all_payroll():
 def api_download_payslip(payroll_id):
     record = Payroll.query.get_or_404(payroll_id)
     
-    # Restrict Employees to their own payslips
-    if request.user_role == 'Employee' and request.employee_id != record.employee_id:
-        return jsonify({'message': 'Access forbidden'}), 403
-        
     if not record.payslip_path:
         return jsonify({'message': 'Payslip PDF file not generated yet'}), 404
         

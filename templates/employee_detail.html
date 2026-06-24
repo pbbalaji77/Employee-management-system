@@ -35,7 +35,7 @@
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span class="text-muted small">Status:</span>
-                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill">{{ 'Active' if employee.active_status else 'Inactive' }}</span>
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill">{{ employee.status or 'Active' }}</span>
                 </div>
             </div>
         </div>
@@ -77,23 +77,27 @@
                         <div class="row g-3">
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">First Name</label>
-                                <input type="text" class="form-control" name="first_name" value="{{ employee.first_name }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <input type="text" class="form-control" name="first_name" value="{{ employee.full_name.split(' ')[0] if employee.full_name else '' }}" required>
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Last Name</label>
-                                <input type="text" class="form-control" name="last_name" value="{{ employee.last_name }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <input type="text" class="form-control" name="last_name" value="{{ employee.full_name.split(' ')[1] if employee.full_name and len(employee.full_name.split(' ')) > 1 else '' }}">
                             </div>
                             <div class="col-12 col-sm-6">
-                                <label class="form-label small font-weight-bold">Mobile Number</label>
-                                <input type="text" class="form-control" name="mobile_number" value="{{ employee.mobile_number }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <label class="form-label small font-weight-bold">Email Address</label>
+                                <input type="email" class="form-control" name="email" value="{{ employee.email }}" required>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Phone Number</label>
+                                <input type="text" class="form-control" name="phone_number" value="{{ employee.phone_number }}">
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Emergency Contact</label>
-                                <input type="text" class="form-control" name="emergency_contact" value="{{ employee.emergency_contact }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <input type="text" class="form-control" name="emergency_contact" value="{{ employee.emergency_contact }}">
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Gender</label>
-                                <select class="form-select" name="gender" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <select class="form-select" name="gender">
                                     <option value="Male" {% if employee.gender == 'Male' %}selected{% endif %}>Male</option>
                                     <option value="Female" {% if employee.gender == 'Female' %}selected{% endif %}>Female</option>
                                     <option value="Other" {% if employee.gender == 'Other' %}selected{% endif %}>Other</option>
@@ -101,50 +105,16 @@
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Date of Birth</label>
-                                <input type="date" class="form-control" name="date_of_birth" value="{{ employee.date_of_birth }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small font-weight-bold">Blood Group</label>
-                                <input type="text" class="form-control" name="blood_group" value="{{ employee.blood_group }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small font-weight-bold">Marital Status</label>
-                                <select class="form-select" name="marital_status" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                                    <option value="Single" {% if employee.marital_status == 'Single' %}selected{% endif %}>Single</option>
-                                    <option value="Married" {% if employee.marital_status == 'Married' %}selected{% endif %}>Married</option>
-                                    <option value="Divorced" {% if employee.marital_status == 'Divorced' %}selected{% endif %}>Divorced</option>
-                                </select>
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small font-weight-bold">Aadhaar Card Number</label>
-                                <input type="text" class="form-control" name="aadhaar_number" value="{{ employee.aadhaar_number }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small font-weight-bold">PAN Card Number</label>
-                                <input type="text" class="form-control" name="pan_number" value="{{ employee.pan_number }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <input type="date" class="form-control" name="date_of_birth" value="{{ employee.date_of_birth }}">
                             </div>
                             <div class="col-12">
                                 <label class="form-label small font-weight-bold">Home Address</label>
-                                <input type="text" class="form-control" name="address" value="{{ employee.address }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                            </div>
-                            <div class="col-12 col-sm-4">
-                                <label class="form-label small font-weight-bold">City</label>
-                                <input type="text" class="form-control" name="city" value="{{ employee.city }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                            </div>
-                            <div class="col-12 col-sm-4">
-                                <label class="form-label small font-weight-bold">State</label>
-                                <input type="text" class="form-control" name="state" value="{{ employee.state }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                            </div>
-                            <div class="col-12 col-sm-4">
-                                <label class="form-label small font-weight-bold">Postal Code</label>
-                                <input type="text" class="form-control" name="postal_code" value="{{ employee.postal_code }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <input type="text" class="form-control" name="address" value="{{ employee.address }}">
                             </div>
                         </div>
-                        {% if session.role_name in ['Super Admin', 'HR Manager'] %}
                         <div class="text-end mt-4">
                             <button type="submit" class="btn btn-primary rounded-pill px-4">Save Changes</button>
                         </div>
-                        {% endif %}
                     </form>
                 </div>
 
@@ -154,11 +124,11 @@
                         <div class="row g-3">
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Designation</label>
-                                <input type="text" class="form-control" name="designation" value="{{ employee.designation }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <input type="text" class="form-control" name="designation" value="{{ employee.designation }}" required>
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Department</label>
-                                <select class="form-select" name="department_id" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <select class="form-select" name="department_id" required>
                                     {% for d in departments %}
                                     <option value="{{ d.id }}" {% if employee.department_id == d.id %}selected{% endif %}>{{ d.department_name }}</option>
                                     {% endfor %}
@@ -166,43 +136,32 @@
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Monthly Gross Salary (INR)</label>
-                                <input type="number" step="0.01" class="form-control" name="salary" value="{{ employee.salary }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                            </div>
-                            <div class="col-12 col-sm-6">
-                                <label class="form-label small font-weight-bold">Employment Type</label>
-                                <select class="form-select" name="employment_type" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                                    <option value="Full-Time" {% if employee.employment_type == 'Full-Time' %}selected{% endif %}>Full-Time</option>
-                                    <option value="Part-Time" {% if employee.employment_type == 'Part-Time' %}selected{% endif %}>Part-Time</option>
-                                    <option value="Contract" {% if employee.employment_type == 'Contract' %}selected{% endif %}>Contract</option>
-                                    <option value="Intern" {% if employee.employment_type == 'Intern' %}selected{% endif %}>Intern</option>
-                                </select>
+                                <input type="number" step="0.01" class="form-control" name="salary" value="{{ employee.salary }}" required>
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Joining Date</label>
-                                <input type="date" class="form-control" name="joining_date" value="{{ employee.joining_date }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <input type="date" class="form-control" name="joining_date" value="{{ employee.joining_date }}" required>
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Reporting Manager</label>
-                                <select class="form-select" name="manager_id" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                <select class="form-select" name="reporting_manager_id">
                                     <option value="">None</option>
                                     {% for m in managers %}
-                                    <option value="{{ m.id }}" {% if employee.manager_id == m.id %}selected{% endif %}>{{ m.full_name }} ({{ m.designation }})</option>
+                                    <option value="{{ m.id }}" {% if employee.reporting_manager_id == m.id %}selected{% endif %}>{{ m.full_name }} ({{ m.designation }})</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Portal Active Status</label>
-                                <select class="form-select" name="active_status" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
-                                    <option value="true" {% if employee.active_status %}selected{% endif %}>Active (Allows portal login)</option>
-                                    <option value="false" {% if not employee.active_status %}selected{% endif %}>Inactive (Blocks portal login)</option>
+                                <select class="form-select" name="status">
+                                    <option value="Active" {% if employee.status == 'Active' %}selected{% endif %}>Active</option>
+                                    <option value="Inactive" {% if employee.status == 'Inactive' %}selected{% endif %}>Inactive</option>
                                 </select>
                             </div>
                         </div>
-                        {% if session.role_name in ['Super Admin', 'HR Manager'] %}
                         <div class="text-end mt-4">
                             <button type="submit" class="btn btn-primary rounded-pill px-4">Save Changes</button>
                         </div>
-                        {% endif %}
                     </form>
                 </div>
 
@@ -304,9 +263,9 @@
                                 <tr>
                                     <th>Month/Year</th>
                                     <th>Basic Salary</th>
-                                    <th>HRA</th>
+                                    <th>Allowances</th>
+                                    <th>Bonuses</th>
                                     <th>Deductions</th>
-                                    <th>Tax</th>
                                     <th>Net Take-home</th>
                                     <th>Payslip PDF</th>
                                 </tr>
@@ -321,9 +280,9 @@
                                 <tr>
                                     <td><span class="font-weight-bold">{{ "%02d/%d"|format(pay.month, pay.year) }}</span></td>
                                     <td>INR {{ pay.basic_salary }}</td>
-                                    <td>INR {{ pay.hra }}</td>
+                                    <td>INR {{ pay.allowances }}</td>
+                                    <td>INR {{ pay.bonuses }}</td>
                                     <td>INR {{ pay.deductions }}</td>
-                                    <td>INR {{ pay.tax }}</td>
                                     <td><span class="text-success font-weight-bold">INR {{ pay.net_salary }}</span></td>
                                     <td>
                                         <a href="/api/payroll/download/{{ pay.id }}" class="btn btn-sm btn-outline-success rounded-pill px-3">
@@ -358,22 +317,12 @@
                             <strong class="ms-3">Goal Achievement:</strong> {{ r.goal_achievement }}%
                         </div>
                         <div class="mb-2">
-                            <strong>Manager Feedback ({{ r.reviewer_name }}):</strong>
+                            <strong>Manager Feedback:</strong>
                             <p class="mb-0 text-muted small">{{ r.manager_feedback }}</p>
                         </div>
                         <div>
                             <strong>Employee Response:</strong>
-                            {% if r.employee_feedback %}
-                            <p class="mb-0 text-muted small">{{ r.employee_feedback }}</p>
-                            {% elif session.employee_id == employee.id %}
-                            <!-- Self feedback response -->
-                            <div class="input-group mt-2">
-                                <input type="text" class="form-control" id="selfFeedbackInput_{{ r.id }}" placeholder="Write response feedback...">
-                                <button class="btn btn-outline-primary" onclick="submitAppraisalFeedback({{ r.id }})">Submit Response</button>
-                            </div>
-                            {% else %}
-                            <p class="mb-0 text-muted small italic">No response submitted yet.</p>
-                            {% endif %}
+                            <p class="mb-0 text-muted small">{{ r.employee_feedback or 'No response submitted.' }}</p>
                         </div>
                     </div>
                     {% endfor %}
@@ -395,7 +344,8 @@
                                     <option value="Resume">Resume</option>
                                     <option value="Certificates">Certificate</option>
                                     <option value="Offer Letter">Offer Letter</option>
-                                    <option value="ID Proof">ID Proof</option>
+                                    <option value="Aadhaar">Aadhaar Card</option>
+                                    <option value="PAN Card">PAN Card</option>
                                     <option value="Experience Letter">Experience Letter</option>
                                 </select>
                             </div>
@@ -412,21 +362,19 @@
                                 <tr>
                                     <th>Document Name</th>
                                     <th>Type</th>
-                                    <th>Upload Date</th>
                                     <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% if not documents %}
                                 <tr>
-                                    <td colspan="4" class="text-muted text-center py-3">No documents uploaded.</td>
+                                    <td colspan="3" class="text-muted text-center py-3">No documents uploaded.</td>
                                 </tr>
                                 {% else %}
                                 {% for d in documents %}
                                 <tr>
                                     <td><span class="font-weight-bold text-primary">{{ d.document_name }}</span></td>
                                     <td>{{ d.document_type }}</td>
-                                    <td>{{ d.uploaded_at }}</td>
                                     <td class="text-end">
                                         <a href="/api/documents/{{ d.id }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 me-1" target="_blank">
                                             <i class="bi bi-download"></i> View
@@ -451,7 +399,6 @@
 {% block extra_js %}
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        // Edit Personal form submit
         const personalForm = document.getElementById("editPersonalForm");
         if (personalForm) {
             personalForm.addEventListener("submit", async (e) => {
@@ -461,7 +408,6 @@
             });
         }
 
-        // Edit Work form submit
         const workForm = document.getElementById("editWorkForm");
         if (workForm) {
             workForm.addEventListener("submit", async (e) => {
@@ -471,7 +417,6 @@
             });
         }
 
-        // Document upload submit
         const docForm = document.getElementById("docUploadForm");
         if (docForm) {
             docForm.addEventListener("submit", async (e) => {
@@ -535,27 +480,6 @@
             }
         } catch (e) {
             showToast("Server communication error.", "danger");
-        }
-    }
-
-    async function submitAppraisalFeedback(reviewId) {
-        const input = document.getElementById(`selfFeedbackInput_${reviewId}`);
-        const text = input.value.trim();
-        if (!text) return;
-        
-        try {
-            const res = await apiRequest(`/api/performance/${reviewId}/feedback`, {
-                method: "PUT",
-                body: JSON.stringify({ employee_feedback: text })
-            });
-            if (res.ok) {
-                showToast("Response submitted successfully!", "success");
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showToast("Failed to submit response.", "danger");
-            }
-        } catch (e) {
-            showToast("Network error.", "danger");
         }
     }
 </script>

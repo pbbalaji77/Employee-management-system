@@ -3,24 +3,21 @@ import datetime
 import os
 from functools import wraps
 from flask import request, jsonify, session, redirect, url_for, flash
-from backend.models import User, Role, Employee
+from backend.models import HRUser, Employee
 
 # Load secrets from env
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev_secret_key_for_ems_system_12345')
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt_dev_secret_key_ems_system_98765')
 
-def generate_jwt_token(user):
+def generate_jwt_token(hr_user):
     """
     Generate JWT Token for REST API Clients.
     """
-    role_name = user.role.name if user.role else 'Employee'
-    employee_id = user.employee.id if user.employee else None
-    
     payload = {
-        'user_id': user.id,
-        'email': user.email,
-        'role': role_name,
-        'employee_id': employee_id,
+        'user_id': hr_user.id,
+        'email': hr_user.email,
+        'username': hr_user.username,
+        'role': 'HR Manager',
         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
     }
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm='HS256')
@@ -62,8 +59,7 @@ def token_required(f):
         # Attach decoded data to request context
         request.user_id = decoded_payload['user_id']
         request.user_email = decoded_payload['email']
-        request.user_role = decoded_payload['role']
-        request.employee_id = decoded_payload['employee_id']
+        request.user_role = decoded_payload.get('role', 'HR Manager')
         
         return f(*args, **kwargs)
     return decorated
@@ -77,7 +73,8 @@ def api_role_required(*allowed_roles):
         def decorated(*args, **kwargs):
             if not hasattr(request, 'user_role'):
                 return jsonify({'message': 'Authentication required!'}), 401
-            if request.user_role not in allowed_roles:
+            # Since this is an HR Manager only system, we assume they are allowed if it matches HR Manager or HR
+            if not any(r in ['HR', 'HR Manager'] for r in allowed_roles):
                 return jsonify({'message': 'Access forbidden: Insufficient permissions!'}), 403
             return f(*args, **kwargs)
         return decorated
@@ -96,11 +93,11 @@ def login_required(f):
             flash('Please log in to access this page.', 'warning')
             return redirect(url_for('auth.login_view'))
         
-        # Verify user still exists and is active
-        user = User.query.get(session['user_id'])
-        if not user or not user.is_active:
+        # Verify user still exists
+        user = HRUser.query.get(session['user_id'])
+        if not user:
             session.clear()
-            flash('Your account has been deactivated or does not exist.', 'danger')
+            flash('Your account does not exist.', 'danger')
             return redirect(url_for('auth.login_view'))
             
         return f(*args, **kwargs)
@@ -113,14 +110,9 @@ def role_required(*allowed_roles):
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-            if 'role_name' not in session:
+            if 'user_id' not in session:
                 flash('Access denied: Login required.', 'warning')
                 return redirect(url_for('auth.login_view'))
-                
-            if session['role_name'] not in allowed_roles:
-                flash('Access denied: You do not have permissions to view this page.', 'danger')
-                # Redirect to dashboard or login
-                return redirect(url_for('auth.dashboard_view'))
             return f(*args, **kwargs)
         return decorated
     return decorator

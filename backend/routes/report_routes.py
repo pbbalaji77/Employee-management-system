@@ -16,7 +16,6 @@ report_bp = Blueprint('report', __name__)
 
 @report_bp.route('/reports')
 @login_required
-@role_required('Super Admin', 'HR Manager')
 def reports_view():
     departments = Department.query.all()
     return render_template('reports.html', departments=departments)
@@ -27,31 +26,30 @@ def reports_view():
 @token_required
 @api_role_required('Super Admin', 'HR Manager')
 def api_export_report():
-    report_type = request.args.get('type') # employees, attendance, leaves, payroll, departments
-    file_format = request.args.get('format', 'csv').lower() # csv, excel, pdf
+    report_type = request.args.get('type')
+    file_format = request.args.get('format', 'csv').lower()
     
     # Query parameters
     dept_id = request.args.get('department_id', type=int)
     month = request.args.get('month', type=int)
     year = request.args.get('year', type=int)
     
-    # 1. Fetch relevant data
     headers = []
     data_rows = []
     title = f"{report_type.capitalize()} Report"
     
     if report_type == 'employees':
-        headers = ['Employee ID', 'Full Name', 'Email', 'Designation', 'Department', 'Employment Type', 'Salary', 'Joining Date', 'Status']
+        headers = ['Employee ID', 'Full Name', 'Email', 'Phone', 'Designation', 'Department', 'Salary', 'Joining Date', 'Status']
         query = Employee.query
         if dept_id:
             query = query.filter_by(department_id=dept_id)
         records = query.all()
         for r in records:
             data_rows.append([
-                r.employee_id, r.full_name, r.email, r.designation,
+                r.employee_id, r.full_name, r.email, r.phone_number or 'N/A', r.designation or 'N/A',
                 r.department.department_name if r.department else 'N/A',
-                r.employment_type, f"{float(r.salary):.2f}",
-                str(r.joining_date), 'Active' if r.active_status else 'Inactive'
+                f"{float(r.salary):.2f}",
+                str(r.joining_date) if r.joining_date else 'N/A', r.status
             ])
             
     elif report_type == 'attendance':
@@ -88,7 +86,7 @@ def api_export_report():
             ])
             
     elif report_type == 'payroll':
-        headers = ['Month/Year', 'Employee ID', 'Employee Name', 'Basic Salary', 'HRA', 'Bonus', 'Incentives', 'Deductions', 'Tax', 'Net Pay']
+        headers = ['Month/Year', 'Employee ID', 'Employee Name', 'Basic Salary', 'Allowances', 'Bonuses', 'Deductions', 'Net Pay']
         query = Payroll.query
         if month:
             query = query.filter_by(month=month)
@@ -99,9 +97,8 @@ def api_export_report():
             data_rows.append([
                 f"{r.month}/{r.year}", r.employee.employee_id if r.employee else 'N/A',
                 r.employee.full_name if r.employee else 'N/A',
-                f"{float(r.basic_salary):.2f}", f"{float(r.hra):.2f}", f"{float(r.bonus):.2f}",
-                f"{float(r.incentives):.2f}", f"{float(r.deductions):.2f}", f"{float(r.tax):.2f}",
-                f"{float(r.net_salary):.2f}"
+                f"{float(r.basic_salary):.2f}", f"{float(r.allowances):.2f}", f"{float(r.bonuses):.2f}",
+                f"{float(r.deductions):.2f}", f"{float(r.net_salary):.2f}"
             ])
             
     elif report_type == 'departments':
@@ -159,7 +156,6 @@ def api_export_report():
         
     elif file_format == 'pdf':
         mem = io.BytesIO()
-        # Custom margins and layout
         doc = SimpleDocTemplate(mem, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=30, bottomMargin=30)
         story = []
         
@@ -176,9 +172,7 @@ def api_export_report():
         story.append(Paragraph(title, title_style))
         story.append(Spacer(1, 10))
         
-        # Build table. Since table is wide, auto-wrap headers & items
         pdf_data = [headers] + data_rows
-        # Set column sizes depending on columns
         col_count = len(headers)
         col_width = (letter[0] - 40) / col_count
         

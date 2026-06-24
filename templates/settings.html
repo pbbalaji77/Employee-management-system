@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}System Settings - Enterprise EMS{% endblock %}
+{% block header_title %}System Settings{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Backups Management -->
+    <div class="col-12 col-lg-8">
+        <div class="glass-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h5 class="font-weight-bold mb-1"><i class="bi bi-database-fill-gear text-info me-2"></i>Database Backups</h5>
+                    <p class="text-muted small mb-0">Create and restore system state recovery points.</p>
+                </div>
+                <button class="btn btn-primary rounded-pill px-4" onclick="createBackup()">
+                    <i class="bi bi-plus-lg me-1"></i>Create Backup
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table custom-table align-middle text-center">
+                    <thead>
+                        <tr>
+                            <th>Backup File</th>
+                            <th>Size (KB)</th>
+                            <th>Created At</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="backupsTableBody">
+                        {% if backups %}
+                            {% for b in backups %}
+                            <tr>
+                                <td><span class="font-weight-bold text-dark">{{ b.filename }}</span></td>
+                                <td>{{ b.size_kb }} KB</td>
+                                <td>{{ b.created_at }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-success rounded-pill px-3 me-2" onclick="restoreBackup('{{ b.filename }}')">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-muted py-4">No backups found. Click "Create Backup" to generate one.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Info / Help -->
+    <div class="col-12 col-lg-4">
+        <div class="glass-card mb-4">
+            <h5 class="font-weight-bold mb-3"><i class="bi bi-info-circle-fill text-info me-2"></i>Backup Information</h5>
+            <p class="text-muted small">
+                Backups contain a full snapshot of your employee roster, attendance logs, leave balances, performance reviews, and payroll history.
+            </p>
+            <div class="alert alert-warning small mb-0" style="border-radius: 12px;">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                Restoring a database replaces the current state entirely. Any changes since the backup was created will be overwritten.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function createBackup() {
+        try {
+            const res = await apiRequest('/api/settings/backup', {
+                method: 'POST'
+            });
+            if (res.ok) {
+                showToast("Database backup created successfully!", "success");
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                const err = await res.json();
+                showToast(err.message || "Failed to create backup.", "danger");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Network error occurred.", "danger");
+        }
+    }
+
+    async function restoreBackup(filename) {
+        if (!confirm(`Are you sure you want to restore the system to backup point: ${filename}? This will restart current db state.`)) {
+            return;
+        }
+
+        try {
+            const res = await apiRequest('/api/settings/restore', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ filename })
+            });
+
+            if (res.ok) {
+                showToast("Database restored successfully! Reloading...", "success");
+                setTimeout(() => {
+                    location.href = "{{ url_for('auth.dashboard_view') }}";
+                }, 2000);
+            } else {
+                const err = await res.json();
+                showToast(err.message || "Failed to restore database.", "danger");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Network error occurred.", "danger");
+        }
+    }
+</script>
+{% endblock %}

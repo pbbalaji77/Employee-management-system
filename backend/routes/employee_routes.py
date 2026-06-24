@@ -4,11 +4,10 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from werkzeug.utils import secure_filename
 from openpyxl import load_workbook
 from backend.database import db
-from backend.models import Employee, User, Role, Department, LeaveRequest, Attendance, Payroll, Document, PerformanceReview
+from backend.models import Employee, Department, LeaveRequest, Attendance, Payroll, EmployeeDocument, PerformanceReview
 from backend.auth import login_required, role_required, token_required, api_role_required
 from backend.services.audit_service import log_action
-from backend.services.email_service import send_welcome_email
-from datetime import datetime
+from datetime import datetime, date
 
 employee_bp = Blueprint('employee', __name__)
 
@@ -21,23 +20,14 @@ def generate_employee_id():
 
 @employee_bp.route('/employees')
 @login_required
-@role_required('Super Admin', 'HR Manager', 'Team Lead')
 def list_view():
     departments = Department.query.all()
-    # List managers for dropdown
     managers = Employee.query.filter(Employee.designation.ilike('%manager%') | Employee.designation.ilike('%lead%')).all()
     return render_template('employees.html', departments=departments, managers=managers)
 
 @employee_bp.route('/employees/<int:emp_id>')
 @login_required
 def detail_view(emp_id):
-    # Enforce access control: Employees can only view their own profile, others require permissions
-    if session['role_name'] == 'Employee':
-        curr_emp = Employee.query.filter_by(user_id=session['user_id']).first()
-        if not curr_emp or curr_emp.id != emp_id:
-            flash("Access Denied: You can only view your own profile.", "danger")
-            return redirect(url_for('auth.dashboard_view'))
-
     emp = Employee.query.get_or_404(emp_id)
     departments = Department.query.all()
     managers = Employee.query.filter(Employee.id != emp_id).all()
@@ -46,7 +36,7 @@ def detail_view(emp_id):
     attendance = Attendance.query.filter_by(employee_id=emp_id).order_by(Attendance.date.desc()).all()
     leaves = LeaveRequest.query.filter_by(employee_id=emp_id).order_by(LeaveRequest.start_date.desc()).all()
     payroll = Payroll.query.filter_by(employee_id=emp_id).order_by(Payroll.year.desc(), Payroll.month.desc()).all()
-    documents = Document.query.filter_by(employee_id=emp_id).order_by(Document.uploaded_at.desc()).all()
+    documents = EmployeeDocument.query.filter_by(employee_id=emp_id).order_by(EmployeeDocument.id.desc()).all()
     reviews = PerformanceReview.query.filter_by(employee_id=emp_id).order_by(PerformanceReview.created_at.desc()).all()
     
     return render_template(
@@ -74,14 +64,12 @@ def api_list_employees():
     dept_id = request.args.get('department_id')
     status = request.args.get('status')
     gender = request.args.get('gender')
-    emp_type = request.args.get('employment_type')
     
     if search:
         search_filter = f"%{search}%"
         query = query.filter(
             db.or_(
-                Employee.first_name.ilike(search_filter),
-                Employee.last_name.ilike(search_filter),
+                Employee.full_name.ilike(search_filter),
                 Employee.email.ilike(search_filter),
                 Employee.employee_id.ilike(search_filter),
                 Employee.designation.ilike(search_filter)
@@ -90,12 +78,9 @@ def api_list_employees():
     if dept_id:
         query = query.filter(Employee.department_id == int(dept_id))
     if status:
-        active_status = status.lower() == 'active'
-        query = query.filter(Employee.active_status == active_status)
+        query = query.filter(Employee.status.ilike(status))
     if gender:
         query = query.filter(Employee.gender.ilike(gender))
-    if emp_type:
-        query = query.filter(Employee.employment_type == emp_type)
         
     # Pagination
     page = request.args.get('page', 1, type=int)
@@ -113,25 +98,21 @@ def api_list_employees():
 @token_required
 def api_get_employee(emp_id):
     emp = Employee.query.get_or_404(emp_id)
-    # Check permissions
-    if request.user_role == 'Employee' and request.employee_id != emp.id:
-        return jsonify({'message': 'Access forbidden'}), 403
     return jsonify(emp.to_dict()), 200
 
 @employee_bp.route('/api/employees', methods=['POST'])
 @token_required
 @api_role_required('Super Admin', 'HR Manager')
 def api_create_employee():
-    """Create a new employee record and associated credentials user account"""
-    # Parse normal fields or form data (for profile image support)
+    """Create a new employee record"""
     data = request.form.to_dict() if request.form else request.get_json() or {}
     
     email = data.get('email')
     if not email:
         return jsonify({'message': 'Email is required'}), 400
         
-    if User.query.filter_by(email=email).first() or Employee.query.filter_by(email=email).first():
-        return jsonify({'message': 'User with this email already exists'}), 400
+    if Employee.query.filter_by(email=email).first():
+        return jsonify({'message': 'Employee with this email already exists'}), 400
 
     # Handle image upload
     profile_photo_path = 'uploads/profiles/default.png'
@@ -144,64 +125,58 @@ def api_create_employee():
             file.save(os.path.join(upload_dir, filename))
             profile_photo_path = f"uploads/profiles/{filename}"
 
-    # Determine default user Role (matches designation if Lead/Manager)
-    designation = data.get('designation', '').lower()
-    role_name = 'Employee'
-    if 'manager' in designation:
-        role_name = 'HR Manager'
-    elif 'lead' in designation or 'supervisor' in designation:
-        role_name = 'Team Lead'
-        
-    role = Role.query.filter_by(name=role_name).first()
-
-    # Create associated login User
-    temp_pass = "Welcome@123"
-    user = User(email=email, role_id=role.id, is_active=True, email_verified=False)
-    user.set_password(temp_pass)
-    db.session.add(user)
-    db.session.flush() # Grab user.id
+    # Determine full_name from inputs
+    full_name = data.get('full_name')
+    if not full_name:
+        first_name = data.get('first_name', '')
+        last_name = data.get('last_name', '')
+        full_name = f"{first_name} {last_name}".strip() or "New Employee"
 
     # Create Employee
     emp_code = generate_employee_id()
     dob = datetime.strptime(data.get('date_of_birth'), '%Y-%m-%d').date() if data.get('date_of_birth') else None
-    joining = datetime.strptime(data.get('joining_date'), '%Y-%m-%d').date() if data.get('joining_date') else date.today()
+    
+    joining_str = data.get('joining_date')
+    if joining_str:
+        joining = datetime.strptime(joining_str, '%Y-%m-%d').date()
+    else:
+        joining = date.today()
+
+    status_str = 'Active'
+    if 'status' in data:
+        status_str = data['status']
+    elif 'active_status' in data:
+        active_bool = str(data['active_status']).lower() in ['true', '1', 'on']
+        status_str = 'Active' if active_bool else 'Inactive'
+
+    mgr_id = data.get('reporting_manager_id') or data.get('manager_id')
+    if mgr_id and str(mgr_id).lower() not in ['none', 'null', '']:
+        reporting_manager_id = int(mgr_id)
+    else:
+        reporting_manager_id = None
 
     new_emp = Employee(
-        user_id=user.id,
         employee_id=emp_code,
-        first_name=data.get('first_name'),
-        last_name=data.get('last_name'),
+        full_name=full_name,
         email=email,
-        mobile_number=data.get('mobile_number'),
-        emergency_contact=data.get('emergency_contact'),
+        phone_number=data.get('phone_number') or data.get('mobile_number'),
         gender=data.get('gender'),
         date_of_birth=dob,
-        blood_group=data.get('blood_group'),
-        marital_status=data.get('marital_status'),
-        address=data.get('address'),
-        city=data.get('city'),
-        state=data.get('state'),
-        country=data.get('country'),
-        postal_code=data.get('postal_code'),
-        department_id=int(data.get('department_id')) if data.get('department_id') else None,
+        department_id=int(data.get('department_id')) if data.get('department_id') else 1,
         designation=data.get('designation'),
-        salary=float(data.get('salary', 0.0)),
+        salary=float(data.get('salary', 0.0) or 0.0),
         joining_date=joining,
-        manager_id=int(data.get('manager_id')) if data.get('manager_id') else None,
+        reporting_manager_id=reporting_manager_id,
+        address=data.get('address'),
+        emergency_contact=data.get('emergency_contact'),
         profile_photo=profile_photo_path,
-        aadhaar_number=data.get('aadhaar_number'),
-        pan_number=data.get('pan_number'),
-        employment_type=data.get('employment_type', 'Full-Time'),
-        active_status=True
+        status=status_str
     )
     
     db.session.add(new_emp)
     db.session.commit()
     
-    # Send login credentials to employee
-    send_welcome_email(f"{new_emp.first_name} {new_emp.last_name}", email, temp_pass)
     log_action(f"Created Employee record {emp_code}", request.user_id)
-    
     return jsonify(new_emp.to_dict()), 201
 
 @employee_bp.route('/api/employees/<int:emp_id>', methods=['PUT'])
@@ -212,34 +187,40 @@ def api_update_employee(emp_id):
     data = request.form.to_dict() if request.form else request.get_json() or {}
     
     # Update fields
-    if 'first_name' in data: emp.first_name = data['first_name']
-    if 'last_name' in data: emp.last_name = data['last_name']
-    if 'mobile_number' in data: emp.mobile_number = data['mobile_number']
-    if 'emergency_contact' in data: emp.emergency_contact = data['emergency_contact']
+    if 'full_name' in data:
+        emp.full_name = data['full_name']
+    elif 'first_name' in data or 'last_name' in data:
+        first_name = data.get('first_name', '') or (emp.full_name.split(' ')[0] if emp.full_name else '')
+        last_name = data.get('last_name', '') or (emp.full_name.split(' ')[1] if emp.full_name and len(emp.full_name.split(' ')) > 1 else '')
+        emp.full_name = f"{first_name} {last_name}".strip()
+        
+    if 'email' in data: emp.email = data['email']
+    if 'phone_number' in data: emp.phone_number = data['phone_number']
+    elif 'mobile_number' in data: emp.phone_number = data['mobile_number']
+    
     if 'gender' in data: emp.gender = data['gender']
-    if 'blood_group' in data: emp.blood_group = data['blood_group']
-    if 'marital_status' in data: emp.marital_status = data['marital_status']
     if 'address' in data: emp.address = data['address']
-    if 'city' in data: emp.city = data['city']
-    if 'state' in data: emp.state = data['state']
-    if 'country' in data: emp.country = data['country']
-    if 'postal_code' in data: emp.postal_code = data['postal_code']
+    if 'emergency_contact' in data: emp.emergency_contact = data['emergency_contact']
     if 'designation' in data: emp.designation = data['designation']
-    if 'employment_type' in data: emp.employment_type = data['employment_type']
-    if 'aadhaar_number' in data: emp.aadhaar_number = data['aadhaar_number']
-    if 'pan_number' in data: emp.pan_number = data['pan_number']
     
     if 'department_id' in data and data['department_id']: 
         emp.department_id = int(data['department_id'])
-    if 'manager_id' in data:
-        emp.manager_id = int(data['manager_id']) if data['manager_id'] else None
+        
+    if 'reporting_manager_id' in data:
+        mgr_id = data['reporting_manager_id']
+        emp.reporting_manager_id = int(mgr_id) if mgr_id and str(mgr_id).lower() not in ['none', 'null', ''] else None
+    elif 'manager_id' in data:
+        mgr_id = data['manager_id']
+        emp.reporting_manager_id = int(mgr_id) if mgr_id and str(mgr_id).lower() not in ['none', 'null', ''] else None
+        
     if 'salary' in data: 
         emp.salary = float(data['salary'])
-    if 'active_status' in data:
+        
+    if 'status' in data:
+        emp.status = data['status']
+    elif 'active_status' in data:
         status_val = str(data['active_status']).lower() in ['true', '1', 'on']
-        emp.active_status = status_val
-        if emp.user:
-            emp.user.is_active = status_val
+        emp.status = 'Active' if status_val else 'Inactive'
             
     if 'date_of_birth' in data and data['date_of_birth']:
         emp.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
@@ -266,14 +247,7 @@ def api_update_employee(emp_id):
 def api_delete_employee(emp_id):
     emp = Employee.query.get_or_404(emp_id)
     code = emp.employee_id
-    
-    # Associated user is cascade deleted due to foreign key constraints,
-    # but let's delete explicitly if needed.
-    if emp.user:
-        db.session.delete(emp.user)
-    else:
-        db.session.delete(emp)
-        
+    db.session.delete(emp)
     db.session.commit()
     log_action(f"Deleted Employee {code}", request.user_id)
     return jsonify({'message': 'Employee deleted successfully'}), 200
@@ -290,10 +264,7 @@ def api_bulk_delete():
     employees = Employee.query.filter(Employee.id.in_(ids)).all()
     count = 0
     for emp in employees:
-        if emp.user:
-            db.session.delete(emp.user)
-        else:
-            db.session.delete(emp)
+        db.session.delete(emp)
         count += 1
         
     db.session.commit()
@@ -334,24 +305,25 @@ def api_bulk_import():
                 if any(row_val):
                     rows.append(dict(zip(headers, row_val)))
         
-        # Process rows
-        role_emp = Role.query.filter_by(name='Employee').first()
-        
         for r in rows:
             email = r.get('email')
-            if not email or User.query.filter_by(email=email).first() or Employee.query.filter_by(email=email).first():
-                continue # Skip existing or empty emails
+            if not email or Employee.query.filter_by(email=email).first():
+                continue
                 
-            # Create user login account
-            temp_pass = "Welcome@123"
-            user = User(email=email, role_id=role_emp.id, is_active=True)
-            user.set_password(temp_pass)
-            db.session.add(user)
-            db.session.flush()
-
             # Parse optional dates
-            dob = datetime.strptime(str(r.get('date_of_birth')), '%Y-%m-%d').date() if r.get('date_of_birth') else None
-            joining = datetime.strptime(str(r.get('joining_date')), '%Y-%m-%d').date() if r.get('joining_date') else date.today()
+            dob = None
+            if r.get('date_of_birth'):
+                try:
+                    dob = datetime.strptime(str(r.get('date_of_birth')), '%Y-%m-%d').date()
+                except Exception:
+                    pass
+            
+            joining = date.today()
+            if r.get('joining_date'):
+                try:
+                    joining = datetime.strptime(str(r.get('joining_date')), '%Y-%m-%d').date()
+                except Exception:
+                    pass
 
             # Find department or map to first
             dept_name = r.get('department')
@@ -361,13 +333,17 @@ def api_bulk_import():
                 if dept:
                     dept_id = dept.id
 
+            full_name = r.get('full_name')
+            if not full_name:
+                first_name = r.get('first_name', '')
+                last_name = r.get('last_name', '')
+                full_name = f"{first_name} {last_name}".strip() or "Imported Employee"
+
             emp = Employee(
-                user_id=user.id,
                 employee_id=generate_employee_id(),
-                first_name=r.get('first_name', 'Imported'),
-                last_name=r.get('last_name', 'Employee'),
+                full_name=full_name,
                 email=email,
-                mobile_number=r.get('mobile_number'),
+                phone_number=r.get('phone_number') or r.get('mobile_number'),
                 gender=r.get('gender'),
                 date_of_birth=dob,
                 joining_date=joining,
@@ -375,14 +351,10 @@ def api_bulk_import():
                 designation=r.get('designation', 'Associate'),
                 salary=float(r.get('salary', 0.0) or 0.0),
                 profile_photo='uploads/profiles/default.png',
-                employment_type=r.get('employment_type', 'Full-Time'),
-                active_status=True
+                status='Active'
             )
             db.session.add(emp)
             db.session.flush()
-            
-            # Send welcome email
-            send_welcome_email(f"{emp.first_name} {emp.last_name}", email, temp_pass)
             imported_count += 1
 
         db.session.commit()

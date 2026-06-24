@@ -35,23 +35,19 @@
                 </a>
             </li>
             
-            {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
             <li class="sidebar-item {% if request.endpoint == 'employee.list_view' %}active{% endif %}">
                 <a href="{{ url_for('employee.list_view') }}">
                     <i class="bi bi-people-fill"></i>
                     <span>Employees</span>
                 </a>
             </li>
-            {% endif %}
 
-            {% if session.role_name in ['Super Admin', 'HR Manager'] %}
             <li class="sidebar-item {% if request.endpoint == 'department.list_view' %}active{% endif %}">
                 <a href="{{ url_for('department.list_view') }}">
                     <i class="bi bi-building-fill"></i>
                     <span>Departments</span>
                 </a>
             </li>
-            {% endif %}
 
             <li class="sidebar-item {% if request.endpoint == 'attendance.attendance_view' %}active{% endif %}">
                 <a href="{{ url_for('attendance.attendance_view') }}">
@@ -64,20 +60,18 @@
                 <a href="{{ url_for('leave.list_view') }}">
                     <i class="bi bi-calendar-event-fill"></i>
                     <span>Leaves</span>
-                    {% if pending_leaves and pending_leaves > 0 and session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
+                    {% if pending_leaves and pending_leaves > 0 %}
                     <span class="badge bg-danger ms-auto">{{ pending_leaves }}</span>
                     {% endif %}
                 </a>
             </li>
 
-            {% if session.role_name in ['Super Admin', 'HR Manager'] %}
             <li class="sidebar-item {% if request.endpoint == 'payroll.payroll_view' %}active{% endif %}">
                 <a href="{{ url_for('payroll.payroll_view') }}">
                     <i class="bi bi-wallet2"></i>
                     <span>Payroll</span>
                 </a>
             </li>
-            {% endif %}
 
             <li class="sidebar-item {% if request.endpoint == 'performance.performance_view' %}active{% endif %}">
                 <a href="{{ url_for('performance.performance_view') }}">
@@ -93,14 +87,19 @@
                 </a>
             </li>
 
-            {% if session.role_name in ['Super Admin', 'HR Manager'] %}
             <li class="sidebar-item {% if request.endpoint == 'report.reports_view' %}active{% endif %}">
                 <a href="{{ url_for('report.reports_view') }}">
                     <i class="bi bi-file-earmark-bar-graph-fill"></i>
                     <span>Reports</span>
                 </a>
             </li>
-            {% endif %}
+
+            <li class="sidebar-item {% if request.endpoint == 'settings.settings_view' %}active{% endif %}">
+                <a href="{{ url_for('settings.settings_view') }}">
+                    <i class="bi bi-gear-fill"></i>
+                    <span>Settings</span>
+                </a>
+            </li>
         </ul>
     </div>
 
@@ -142,13 +141,11 @@
                             <span class="small font-weight-bold d-none d-md-inline">{{ session.full_name }}</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end glass-card shadow" style="border-radius: 12px;">
-                            {% if session.employee_id %}
                             <li>
-                                <a class="dropdown-item" href="{{ url_for('employee.detail_view', emp_id=session.employee_id) }}">
-                                    <i class="bi bi-person me-2"></i> My Profile
+                                <a class="dropdown-item" href="{{ url_for('settings.settings_view') }}">
+                                    <i class="bi bi-gear me-2"></i> Settings
                                 </a>
                             </li>
-                            {% endif %}
                             <li>
                                 <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
                                     <i class="bi bi-key me-2"></i> Change Password

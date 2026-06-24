@@ -3,8 +3,8 @@ import uuid
 from flask import Blueprint, request, jsonify, send_file, current_app
 from werkzeug.utils import secure_filename
 from backend.database import db
-from backend.models import Document, Employee
-from backend.auth import token_required
+from backend.models import EmployeeDocument, Employee
+from backend.auth import token_required, api_role_required
 from backend.services.audit_service import log_action
 
 document_bp = Blueprint('document', __name__)
@@ -21,31 +21,30 @@ def allowed_file(filename):
 def api_list_documents():
     employee_id = request.args.get('employee_id')
     
-    query = Document.query
+    query = EmployeeDocument.query
     
-    if request.user_role == 'Employee':
-        query = query.filter(Document.employee_id == request.employee_id)
-    elif employee_id:
-        query = query.filter(Document.employee_id == int(employee_id))
+    if employee_id:
+        query = query.filter(EmployeeDocument.employee_id == int(employee_id))
         
-    docs = query.order_by(Document.uploaded_at.desc()).all()
+    docs = query.order_by(EmployeeDocument.id.desc()).all()
     return jsonify([d.to_dict() for d in docs]), 200
 
 @document_bp.route('/api/documents', methods=['POST'])
 @token_required
+@api_role_required('Super Admin', 'HR Manager')
 def api_upload_document():
     """Upload a file document for an employee"""
-    emp_id = request.args.get('employee_id', request.employee_id, type=int)
-    
-    # Non-admins/HR cannot upload files for other employees
-    if request.user_role == 'Employee' and request.employee_id != emp_id:
-        return jsonify({'message': 'Access forbidden'}), 403
+    emp_id = request.args.get('employee_id', type=int)
+    if not emp_id:
+        return jsonify({'message': 'employee_id query parameter is required'}), 400
+        
+    emp = Employee.query.get_or_404(emp_id)
         
     if 'file' not in request.files:
         return jsonify({'message': 'No file part in request'}), 400
         
     file = request.files['file']
-    doc_type = request.form.get('document_type') # Resume, Certificate, etc.
+    doc_type = request.form.get('document_type')
     
     if file.filename == '':
         return jsonify({'message': 'No file selected'}), 400
@@ -61,10 +60,9 @@ def api_upload_document():
         filepath = os.path.join(upload_dir, filename)
         file.save(filepath)
         
-        # Save to database
         db_path = f"uploads/documents/{filename}"
-        doc = Document(
-            employee_id=emp_id,
+        doc = EmployeeDocument(
+            employee_id=emp.id,
             document_name=file.filename,
             document_type=doc_type,
             file_path=db_path
@@ -73,7 +71,7 @@ def api_upload_document():
         db.session.add(doc)
         db.session.commit()
         
-        log_action(f"Uploaded {doc_type}: {file.filename}", request.user_id)
+        log_action(f"Uploaded {doc_type}: {file.filename} for Employee {emp.employee_id}", request.user_id)
         return jsonify(doc.to_dict()), 201
         
     return jsonify({'message': 'File type not allowed'}), 400
@@ -82,11 +80,7 @@ def api_upload_document():
 @token_required
 def api_download_document(doc_id):
     """View/Download a document file"""
-    doc = Document.query.get_or_404(doc_id)
-    
-    # Check permissions
-    if request.user_role == 'Employee' and request.employee_id != doc.employee_id:
-        return jsonify({'message': 'Access forbidden'}), 403
+    doc = EmployeeDocument.query.get_or_404(doc_id)
         
     filepath = os.path.join(current_app.root_path, 'static', doc.file_path)
     if not os.path.exists(filepath):
@@ -96,13 +90,10 @@ def api_download_document(doc_id):
 
 @document_bp.route('/api/documents/<int:doc_id>', methods=['DELETE'])
 @token_required
+@api_role_required('Super Admin', 'HR Manager')
 def api_delete_document(doc_id):
     """Remove a document from the system and delete the disk file"""
-    doc = Document.query.get_or_404(doc_id)
-    
-    # Check permissions
-    if request.user_role == 'Employee' and request.employee_id != doc.employee_id:
-        return jsonify({'message': 'Access forbidden'}), 403
+    doc = EmployeeDocument.query.get_or_404(doc_id)
         
     # Delete from disk
     filepath = os.path.join(current_app.root_path, 'static', doc.file_path)

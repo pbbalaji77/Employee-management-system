@@ -11,24 +11,18 @@ def ai_employee_search(query):
       - "Show software engineers in Engineering department"
       - "List employees earning more than 50000"
       - "Who is reporting to Manager John?"
-      - "Show active contract employees"
+      - "Show active employees"
     """
     query_lower = query.lower()
     filters = []
     
-    # 1. Active status check
+    # 1. Status check
     if "inactive" in query_lower:
-        filters.append(Employee.active_status == False)
+        filters.append(Employee.status == 'Inactive')
     elif "active" in query_lower:
-        filters.append(Employee.active_status == True)
+        filters.append(Employee.status == 'Active')
 
-    # 2. Employment Type check
-    types = ["full-time", "part-time", "contract", "intern"]
-    for t in types:
-        if t in query_lower:
-            filters.append(Employee.employment_type.ilike(t))
-
-    # 3. Department matching
+    # 2. Department matching
     departments = Department.query.all()
     matched_dept_id = None
     for dept in departments:
@@ -37,8 +31,7 @@ def ai_employee_search(query):
             filters.append(Employee.department_id == dept.id)
             break
 
-    # 4. Salary constraints
-    # Matches "earning more than 50000", "salary > 60000", etc.
+    # 3. Salary constraints
     sal_more = re.findall(r"(?:earning|salary|earn|more than|above|>)\s*(\d+)", query_lower)
     sal_less = re.findall(r"(?:less than|below|<)\s*(\d+)", query_lower)
     
@@ -47,14 +40,14 @@ def ai_employee_search(query):
     if sal_less:
         filters.append(Employee.salary <= float(sal_less[0]))
 
-    # 5. Designation matching (check standard patterns or exact designator)
+    # 4. Designation matching
     designations = ["software engineer", "developer", "manager", "lead", "hr", "analyst", "director", "associate"]
     for desg in designations:
         if desg in query_lower:
             filters.append(Employee.designation.ilike(f"%{desg}%"))
             break
 
-    # 6. Gender check
+    # 5. Gender check
     if "female" in query_lower or "women" in query_lower:
         filters.append(Employee.gender.ilike("female"))
     elif "male" in query_lower or " men " in query_lower:
@@ -63,13 +56,11 @@ def ai_employee_search(query):
     # Execute query
     results = Employee.query.filter(*filters).all()
     
-    # If no results and it's a specific designation check, do fallback keyword matching
+    # Fallback keyword matching
     if not results and len(query.split()) <= 4:
-        # Fallback to search designation/name directly
         results = Employee.query.filter(
             db.or_(
-                Employee.first_name.ilike(f"%{query}%"),
-                Employee.last_name.ilike(f"%{query}%"),
+                Employee.full_name.ilike(f"%{query}%"),
                 Employee.designation.ilike(f"%{query}%")
             )
         ).all()
@@ -109,8 +100,7 @@ def ai_dashboard_assistant(question):
     # Question 3: Employees absent today?
     if "absent today" in q_lower or "who is absent" in q_lower or "missing attendance" in q_lower:
         today = date.today()
-        # Find all active employees who do NOT have an attendance record today
-        active_emps = Employee.query.filter(Employee.active_status == True).all()
+        active_emps = Employee.query.filter(Employee.status == 'Active').all()
         attendance_today = Attendance.query.filter(Attendance.date == today).all()
         checked_in_ids = {a.employee_id for a in attendance_today}
         
@@ -128,10 +118,9 @@ def ai_dashboard_assistant(question):
     # Question 5: Headcount or count of employees
     if "how many employees" in q_lower or "total headcount" in q_lower or "employee count" in q_lower:
         total = Employee.query.count()
-        active = Employee.query.filter(Employee.active_status == True).count()
+        active = Employee.query.filter(Employee.status == 'Active').count()
         return f"There are a total of {total} employees in the system, out of which {active} are active."
 
-    # Fallback response
     return ("I can help you analyze employee metrics. Try asking: <br>"
             "- 'Who joined this month?'<br>"
             "- 'Who are the top performers?'<br>"
@@ -140,8 +129,7 @@ def ai_dashboard_assistant(question):
 
 def ai_resume_screening(resume_text, target_role="Software Engineer"):
     """
-    Screens resume text against key metrics (Skills, Education, Experience).
-    Returns score (0-100), key findings, strengths, weaknesses, and decision.
+    Screens resume text against key skills, education, and experience.
     """
     resume_lower = resume_text.lower()
     score = 0
@@ -149,7 +137,6 @@ def ai_resume_screening(resume_text, target_role="Software Engineer"):
     weaknesses = []
     
     # 1. Skills Matching (Max 40 points)
-    # Define keywords for common categories
     tech_skills = {
         'python': 8, 'flask': 8, 'django': 5, 'javascript': 6, 'js': 4,
         'html': 4, 'css': 4, 'react': 7, 'angular': 5, 'vue': 5,
@@ -161,7 +148,6 @@ def ai_resume_screening(resume_text, target_role="Software Engineer"):
     skills_score = 0
     matched_skills = []
     for skill, points in tech_skills.items():
-        # Match word boundaries or exact substrings
         if re.search(r'\b' + re.escape(skill) + r'\b', resume_lower):
             skills_score += points
             matched_skills.append(skill.upper())
@@ -171,7 +157,7 @@ def ai_resume_screening(resume_text, target_role="Software Engineer"):
     if matched_skills:
         strengths.append(f"Technical skills matched: {', '.join(matched_skills)}")
     else:
-        weaknesses.append("No common tech stack keywords matched (Python, JS, SQL, Docker, React, etc.)")
+        weaknesses.append("No common tech stack keywords matched")
 
     # 2. Education Check (Max 30 points)
     edu_score = 0
@@ -186,12 +172,11 @@ def ai_resume_screening(resume_text, target_role="Software Engineer"):
             
     score += edu_score
     if edu_score >= 20:
-        strengths.append("Possesses a degree in higher education (Bachelors or higher)")
+        strengths.append("Possesses higher education degree")
     else:
-        weaknesses.append("Higher education degree (B.Tech, MCA, Masters) not explicitly found")
+        weaknesses.append("Higher education degree not explicitly found")
 
     # 3. Experience Scoring (Max 30 points)
-    # Extract years of experience using regex patterns
     exp_patterns = [
         r'(\d+)\s*\+?\s*years?\s+of?\s+experience',
         r'(\d+)\s*\+?\s*yrs?\s+of?\s+experience',
@@ -205,7 +190,6 @@ def ai_resume_screening(resume_text, target_role="Software Engineer"):
         if matches:
             years_found = max(years_found, int(matches[0]))
             
-    # Heuristic: count mentions of "engineer", "developer", "experience" to estimate years if regex failed
     if years_found == 0:
         if "senior" in resume_lower or "lead" in resume_lower:
             years_found = 5
@@ -214,7 +198,7 @@ def ai_resume_screening(resume_text, target_role="Software Engineer"):
         elif "experience" in resume_lower:
             years_found = 3
             
-    exp_score = min(years_found * 6, 30) # 5+ years gets full 30 points
+    exp_score = min(years_found * 6, 30)
     score += exp_score
     
     if years_found > 0:
@@ -222,7 +206,6 @@ def ai_resume_screening(resume_text, target_role="Software Engineer"):
     else:
         weaknesses.append("No professional years of experience could be parsed")
 
-    # Decision Recommendation
     if score >= 75:
         decision = "Strong Shortlist (Proceed to Interview)"
     elif score >= 50:
@@ -241,15 +224,14 @@ def ai_resume_screening(resume_text, target_role="Software Engineer"):
 
 def ai_employee_insights():
     """
-    Calculates attrition risk and gathers statistical insights for all employees.
+    Calculates attrition risk and gathers statistical insights for active employees.
     """
-    employees = Employee.query.filter(Employee.active_status == True).all()
+    employees = Employee.query.filter(Employee.status == 'Active').all()
     insights = []
     
     if not employees:
         return []
 
-    # Calculate average salary by department to find outliers
     dept_salaries = {}
     for emp in employees:
         if emp.department_id not in dept_salaries:
@@ -270,10 +252,10 @@ def ai_employee_insights():
             dept_medians[d_id] = 0
 
     for emp in employees:
-        attrition_score = 10  # Base level
+        attrition_score = 10
         reasons = []
         
-        # 1. Performance reviews check
+        # 1. Appraisals Check
         reviews = PerformanceReview.query.filter(PerformanceReview.employee_id == emp.id).all()
         avg_rating = 3.0
         if reviews:
@@ -281,20 +263,20 @@ def ai_employee_insights():
             
         if avg_rating <= 2.0:
             attrition_score += 30
-            reasons.append("Low performance rating (under 2/5) indicates demotivation or role mismatch")
+            reasons.append("Low performance rating (under 2/5) indicates role mismatch")
         elif avg_rating <= 3.0:
             attrition_score += 15
             reasons.append("Average performance rating (2-3/5)")
 
-        # 2. Salary peer comparison
+        # 2. Peer Salaries Check
         median = dept_medians.get(emp.department_id, 0)
         emp_salary = float(emp.salary) if emp.salary else 0
         if emp_salary > 0 and median > 0:
             if emp_salary < (median * 0.85):
                 attrition_score += 25
-                reasons.append(f"Salary is more than 15% below the department median (INR {emp_salary:,.2f} vs peer median INR {median:,.2f})")
+                reasons.append(f"Salary is more than 15% below the department median (INR {emp_salary:,.2f} vs median INR {median:,.2f})")
 
-        # 3. High Overtime Burnout Check
+        # 3. Overtime burnout
         overtime_recs = Attendance.query.filter(
             Attendance.employee_id == emp.id,
             Attendance.overtime_hours > 0
@@ -304,14 +286,12 @@ def ai_employee_insights():
             attrition_score += 20
             reasons.append(f"High cumulative overtime ({total_overtime:.1f} hours) indicates potential burnout")
 
-        # 4. Long tenure without promotion/change
+        # 4. Tenure check
         years_worked = (date.today() - emp.joining_date).days / 365.25 if emp.joining_date else 0
         if years_worked > 3.0:
-            # If working long time and rating is good, but salary below median or designated same
             attrition_score += 15
             reasons.append(f"Long company tenure ({years_worked:.1f} years) without recent role progression")
 
-        # Cap at 100
         attrition_score = min(attrition_score, 100)
         
         if attrition_score >= 60:
@@ -332,6 +312,5 @@ def ai_employee_insights():
             'reasons': reasons if reasons else ["Employee shows high alignment and low-risk signals."]
         })
 
-    # Sort high risk first
     insights.sort(key=lambda x: x['attrition_score'], reverse=True)
     return insights

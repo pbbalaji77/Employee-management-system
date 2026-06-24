@@ -6,7 +6,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 def generate_payslip_pdf(payroll_record, employee_record, output_dir='static/uploads/payslips'):
     """
-    Generate a professional PDF payslip for an employee.
+    Generate a professional PDF payslip for an employee based on the standard schema.
     """
     os.makedirs(output_dir, exist_ok=True)
     filename = f"payslip_{employee_record.employee_id}_{payroll_record.year}_{payroll_record.month}.pdf"
@@ -68,7 +68,7 @@ def generate_payslip_pdf(payroll_record, employee_record, output_dir='static/upl
             Paragraph("<b>Joining Date:</b>", body_style), Paragraph(str(employee_record.joining_date) if employee_record.joining_date else "N/A", body_style)
         ],
         [
-            Paragraph("<b>PAN Number:</b>", body_style), Paragraph(employee_record.pan_number or "N/A", body_style),
+            Paragraph("<b>Email:</b>", body_style), Paragraph(employee_record.email or "N/A", body_style),
             Paragraph("<b>Bank A/C Details:</b>", body_style), Paragraph("XXXXXXXXX" + employee_record.employee_id[-4:] if len(employee_record.employee_id) >= 4 else "N/A", body_style)
         ]
     ]
@@ -89,23 +89,20 @@ def generate_payslip_pdf(payroll_record, employee_record, output_dir='static/upl
          Paragraph("<b>Deductions</b>", bold_style), Paragraph("<b>Amount (INR)</b>", bold_style)],
         
         [Paragraph("Basic Salary", body_style), Paragraph(f"{payroll_record.basic_salary:.2f}", body_style),
-         Paragraph("Income Tax", body_style), Paragraph(f"{payroll_record.tax:.2f}", body_style)],
+         Paragraph("Standard Deductions", body_style), Paragraph(f"{payroll_record.deductions:.2f}", body_style)],
         
-        [Paragraph("HRA (House Rent Allowance)", body_style), Paragraph(f"{payroll_record.hra:.2f}", body_style),
-         Paragraph("Other Deductions", body_style), Paragraph(f"{payroll_record.deductions:.2f}", body_style)],
-        
-        [Paragraph("Bonus", body_style), Paragraph(f"{payroll_record.bonus:.2f}", body_style),
+        [Paragraph("Allowances (HRA, LTA, etc.)", body_style), Paragraph(f"{payroll_record.allowances:.2f}", body_style),
          Paragraph("", body_style), Paragraph("", body_style)],
         
-        [Paragraph("Incentives", body_style), Paragraph(f"{payroll_record.incentives:.2f}", body_style),
+        [Paragraph("Bonuses & Incentives", body_style), Paragraph(f"{payroll_record.bonuses:.2f}", body_style),
          Paragraph("", body_style), Paragraph("", body_style)],
         
         # Totals
         [
             Paragraph("<b>Gross Earnings (A)</b>", bold_style),
-            Paragraph(f"<b>{(payroll_record.basic_salary + payroll_record.hra + payroll_record.bonus + payroll_record.incentives):.2f}</b>", bold_style),
+            Paragraph(f"<b>{(payroll_record.basic_salary + payroll_record.allowances + payroll_record.bonuses):.2f}</b>", bold_style),
             Paragraph("<b>Total Deductions (B)</b>", bold_style),
-            Paragraph(f"<b>{(payroll_record.tax + payroll_record.deductions):.2f}</b>", bold_style)
+            Paragraph(f"<b>{payroll_record.deductions:.2f}</b>", bold_style)
         ]
     ]
 
@@ -113,7 +110,7 @@ def generate_payslip_pdf(payroll_record, employee_record, output_dir='static/upl
     t_calc.setStyle(TableStyle([
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E0")),
         ('BACKGROUND', (0,0), (3,0), colors.HexColor("#EDF2F7")),
-        ('BACKGROUND', (0,5), (-1,5), colors.HexColor("#EDF2F7")),
+        ('BACKGROUND', (0,4), (-1,4), colors.HexColor("#EDF2F7")),
         ('PADDING', (0,0), (-1,-1), 8),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
     ]))
@@ -150,5 +147,4 @@ def generate_payslip_pdf(payroll_record, employee_record, output_dir='static/upl
     story.append(t_sig)
 
     doc.build(story)
-    # Return relative path for web serving
     return f"uploads/payslips/{filename}"
