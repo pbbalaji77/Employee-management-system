@@ -1,0 +1,245 @@
+/* Custom Glassmorphism Theme System */
+:root {
+    --bg-color: #f5f7fa;
+    --sidebar-bg: rgba(26, 54, 93, 0.9);
+    --sidebar-text: #e2e8f0;
+    --sidebar-hover: rgba(255, 255, 255, 0.15);
+    --sidebar-active: #3182ce;
+    --card-bg: rgba(255, 255, 255, 0.7);
+    --card-border: rgba(255, 255, 255, 0.35);
+    --card-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.08);
+    --text-primary: #2d3748;
+    --text-secondary: #718096;
+    --accent-color: #3182ce;
+    --accent-hover: #2b6cb0;
+    --border-color: #e2e8f0;
+    --glass-blur: blur(12px);
+    --glass-saturate: saturate(180%);
+}
+
+[data-theme="dark"] {
+    --bg-color: #0b0f19;
+    --sidebar-bg: rgba(15, 23, 42, 0.95);
+    --sidebar-text: #cbd5e1;
+    --sidebar-hover: rgba(255, 255, 255, 0.08);
+    --sidebar-active: #3b82f6;
+    --card-bg: rgba(30, 41, 59, 0.6);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-color: #3b82f6;
+    --accent-hover: #2563eb;
+    --border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Core Layout & Page Defaults */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* Glassmorphism Card System */
+.glass-card {
+    background: var(--card-bg);
+    backdrop-filter: var(--glass-blur) var(--glass-saturate);
+    -webkit-backdrop-filter: var(--glass-blur) var(--glass-saturate);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    padding: 1.5rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15);
+}
+
+/* Dashboard Widgets */
+.widget-icon {
+    font-size: 2rem;
+    padding: 1rem;
+    border-radius: 12px;
+    background: rgba(49, 130, 206, 0.15);
+    color: var(--accent-color);
+}
+
+/* Custom Sidebar styling */
+.sidebar-container {
+    background: var(--sidebar-bg);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    min-height: 100vh;
+    color: var(--sidebar-text);
+    width: 260px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-brand {
+    font-weight: 700;
+    font-size: 1.3rem;
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar-menu {
+    list-style: none;
+    padding: 1rem 0.5rem;
+    margin: 0;
+}
+
+.sidebar-item a {
+    color: var(--sidebar-text);
+    text-decoration: none;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-bottom: 0.25rem;
+}
+
+.sidebar-item a:hover {
+    background: var(--sidebar-hover);
+    color: #fff;
+}
+
+.sidebar-item.active a {
+    background: var(--sidebar-active);
+    color: #fff;
+}
+
+.main-content {
+    margin-left: 260px;
+    padding: 2rem;
+    transition: all 0.3s ease;
+}
+
+@media (max-width: 991.98px) {
+    .sidebar-container {
+        margin-left: -260px;
+    }
+    .sidebar-container.active {
+        margin-left: 0;
+    }
+    .main-content {
+        margin-left: 0;
+    }
+}
+
+/* Navbar branding & Header controls */
+.top-navbar {
+    background: var(--card-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    padding: 0.75rem 1.5rem;
+}
+
+/* Table styling in Glassmorphism cards */
+.custom-table {
+    color: var(--text-primary) !important;
+}
+
+.custom-table th {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border-bottom: 2px solid var(--border-color);
+    font-weight: 600;
+}
+
+.custom-table td {
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+/* Custom button states */
+.btn-primary {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* Forms & Inputs styling */
+.form-control, .form-select {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 10px;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 0.25rem rgba(49, 130, 206, 0.25);
+}
+
+/* Chat bubble styling for AI assistant */
+.chat-container {
+    height: 350px;
+    overflow-y: auto;
+    border-radius: 12px;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.chat-bubble {
+    max-width: 80%;
+    padding: 0.75rem 1rem;
+    border-radius: 16px;
+    margin-bottom: 0.75rem;
+}
+
+.chat-bubble.bot {
+    background: rgba(49, 130, 206, 0.15);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+}
+
+.chat-bubble.user {
+    background: var(--accent-color);
+    color: #fff;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+/* Light / Dark Mode Toggle button style */
+.theme-toggle-btn {
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    border: none;
+    background: transparent;
+    padding: 0.5rem;
+}
+
+/* Notification Bell dropdown bubble */
+.notif-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    padding: 0.25em 0.6em;
+    border-radius: 50%;
+    font-size: 0.65rem;
+}

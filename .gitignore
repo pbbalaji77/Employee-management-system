@@ -1,0 +1,36 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# Flask & Environment configuration
+.env
+instance/
+.pytest_cache/
+
+# Databases
+database/*.db
+database/*.sqlite
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# User Uploads
+static/uploads/profiles/*
+!static/uploads/profiles/default.png
+static/uploads/documents/*
+static/uploads/payslips/*
+static/uploads/sent_emails.txt
+
+# Editor / IDE settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp

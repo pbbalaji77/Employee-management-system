@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Performance appraisals - Enterprise EMS{% endblock %}
+{% block header_title %}Performance Reviews{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Submit Review Panel (HR/Lead/Admin only) -->
+    {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
+    <div class="col-12 col-lg-4">
+        <div class="glass-card">
+            <h5 class="font-weight-bold mb-3"><i class="bi bi-star-fill text-warning me-2"></i>Appraise Employee</h5>
+            <form id="createReviewForm">
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Select Employee</label>
+                    <select class="form-select" id="empSelectAppraisal" name="employee_id" required>
+                        <option value="">Select Employee...</option>
+                        {% for e in employees %}
+                        {% if e.id != session.employee_id %}
+                        <option value="{{ e.id }}">{{ e.full_name }} ({{ e.employee_id }})</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Appraisal Period</label>
+                    <select class="form-select" name="review_period" required>
+                        <option value="Monthly">Monthly Review</option>
+                        <option value="Quarterly">Quarterly Review</option>
+                        <option value="Annual">Annual Review</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Goal Achievement (%)</label>
+                    <input type="number" step="0.1" class="form-control" name="goal_achievement" placeholder="e.g. 95.5" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Overall Rating</label>
+                    <select class="form-select" name="rating" required>
+                        <option value="5">5 Stars (Outstanding)</option>
+                        <option value="4">4 Stars (Exceeds expectations)</option>
+                        <option value="3">3 Stars (Meets expectations)</option>
+                        <option value="2">2 Stars (Needs improvement)</option>
+                        <option value="1">1 Star (Unsatisfactory)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Appraisal Feedback Comments</label>
+                    <textarea class="form-control" name="manager_feedback" rows="4" placeholder="Describe achievements, strengths, and areas to work on..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 font-weight-bold">Submit Review</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Reviews Listing Column -->
+    <div class="col-12 {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}col-lg-8{% else %}col-12{% endif %}">
+        <div class="glass-card h-100">
+            <h5 class="font-weight-bold mb-3">Appraisals Ledger</h5>
+            <div id="reviewsContainer">
+                <div class="text-center py-4 text-muted">Loading reviews list...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        loadPerformanceReviews();
+
+        // Submit Appraisal form
+        const reviewForm = document.getElementById("createReviewForm");
+        if (reviewForm) {
+            reviewForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const payload = {
+                    employee_id: parseInt(reviewForm.employee_id.value),
+                    review_period: reviewForm.review_period.value,
+                    goal_achievement: parseFloat(reviewForm.goal_achievement.value),
+                    rating: parseInt(reviewForm.rating.value),
+                    manager_feedback: reviewForm.manager_feedback.value
+                };
+
+                try {
+                    const res = await apiRequest("/api/performance", {
+                        method: "POST",
+                        body: JSON.stringify(payload)
+                    });
+                    if (res.ok) {
+                        showToast("Appraisal submitted successfully!", "success");
+                        reviewForm.reset();
+                        loadPerformanceReviews();
+                    } else {
+                        const data = await res.json();
+                        showToast(data.message || "Failed to submit appraisal.", "danger");
+                    }
+                } catch (e) {
+                    showToast("Error processing request.", "danger");
+                }
+            });
+        }
+    });
+
+    async function loadPerformanceReviews() {
+        try {
+            const res = await apiRequest("/api/performance");
+            if (!res.ok) return;
+            const reviews = await res.json();
+            
+            const container = document.getElementById("reviewsContainer");
+            if (!container) return;
+
+            if (reviews.length === 0) {
+                container.innerHTML = '<div class="text-muted text-center py-4">No reviews recorded.</div>';
+                return;
+            }
+
+            let html = "";
+            reviews.forEach(r => {
+                let stars = "";
+                for (let i = 1; i <= 5; i++) {
+                    stars += i <= r.rating ? '<i class="bi bi-star-fill text-warning"></i>' : '<i class="bi bi-star text-muted"></i>';
+                }
+
+                const responseSection = r.employee_feedback
+                    ? `<div class="mt-2 bg-white bg-opacity-40 p-2 rounded small border text-muted">
+                           <strong>Employee Response:</strong> ${r.employee_feedback}
+                       </div>`
+                    : {% if session.employee_id %}
+                      (r.employee_id === {{ session.employee_id }} 
+                          ? `<div class="input-group mt-2">
+                                 <input type="text" class="form-control form-control-sm" id="selfResponse_${r.id}" placeholder="Write response feedback...">
+                                 <button class="btn btn-sm btn-outline-primary" onclick="submitReviewResponse(${r.id})">Respond</button>
+                             </div>`
+                          : `<div class="text-muted small mt-2 italic">Awaiting employee response...</div>`)
+                      {% else %}
+                      `<div class="text-muted small mt-2 italic">Awaiting employee response...</div>`
+                      {% endif %};
+
+                html += `
+                    <div class="card p-3 mb-3 bg-light border-0" style="border-radius: 12px;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <span class="font-weight-bold text-dark">${r.employee_name}</span>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary rounded-pill ms-1">${r.review_period}</span>
+                            </div>
+                            <span class="text-muted small" style="font-size: 0.75rem;">${formatTime(r.created_at)}</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Rating:</strong> <span class="me-3">${stars}</span>
+                            <strong>Goal Achievement:</strong> ${r.goal_achievement}%
+                        </div>
+                        <div class="small mb-1">
+                            <strong>Manager Evaluation (${r.reviewer_name}):</strong>
+                            <p class="mb-0 text-muted">${r.manager_feedback}</p>
+                        </div>
+                        ${responseSection}
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function submitReviewResponse(reviewId) {
+        const input = document.getElementById(`selfResponse_${reviewId}`);
+        const text = input.value.trim();
+        if (!text) return;
+
+        try {
+            const res = await apiRequest(`/api/performance/${reviewId}/feedback`, {
+                method: "PUT",
+                body: JSON.stringify({ employee_feedback: text })
+            });
+            if (res.ok) {
+                showToast("Appraisal response submitted!", "success");
+                loadPerformanceReviews();
+            } else {
+                showToast("Failed to submit response.", "danger");
+            }
+        } catch (e) {
+            showToast("Error processing response request.", "danger");
+        }
+    }
+</script>
+{% endblock %}

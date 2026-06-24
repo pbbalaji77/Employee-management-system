@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Log - Enterprise EMS{% endblock %}
+{% block header_title %}Attendance Management{% endblock %}
+
+{% block content %}
+<div class="glass-card mb-4">
+    <div class="row g-3 align-items-center justify-content-between mb-4">
+        <div>
+            <h5 class="font-weight-bold mb-1">Timecard History</h5>
+            <p class="text-muted small mb-0">Select a month and year to retrieve attendance logs.</p>
+        </div>
+        <div class="col-12 col-md-5 d-flex gap-2">
+            <select class="form-select" id="monthSelector" onchange="loadAttendance()">
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+            <select class="form-select" id="yearSelector" onchange="loadAttendance()">
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Attendance Grid / Calendar Map -->
+    <div class="row g-3 mb-4 text-center">
+        <div class="col-6 col-sm-3 col-md">
+            <div class="p-2 border rounded bg-success bg-opacity-10 text-success">
+                <span class="small d-block text-muted">Days Present</span>
+                <h4 class="mb-0 font-weight-bold" id="presentCount">0</h4>
+            </div>
+        </div>
+        <div class="col-6 col-sm-3 col-md">
+            <div class="p-2 border rounded bg-warning bg-opacity-10 text-warning">
+                <span class="small d-block text-muted">Half Days</span>
+                <h4 class="mb-0 font-weight-bold" id="halfDayCount">0</h4>
+            </div>
+        </div>
+        <div class="col-6 col-sm-3 col-md">
+            <div class="p-2 border rounded bg-info bg-opacity-10 text-info">
+                <span class="small d-block text-muted">On Leave</span>
+                <h4 class="mb-0 font-weight-bold" id="leaveCount">0</h4>
+            </div>
+        </div>
+        <div class="col-6 col-sm-3 col-md">
+            <div class="p-2 border rounded bg-danger bg-opacity-10 text-danger">
+                <span class="small d-block text-muted">Days Absent</span>
+                <h4 class="mb-0 font-weight-bold" id="absentCount">0</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Table -->
+    <div class="table-responsive">
+        <table class="table custom-table align-middle text-center">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    {% if session.role_name in ['Super Admin', 'HR Manager'] %}
+                    <th>Employee ID</th>
+                    <th>Full Name</th>
+                    {% endif %}
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Working Hours</th>
+                    <th>Overtime (Hrs)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+                <tr>
+                    <td colspan="8" class="text-muted py-3">Loading logs...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Default selectors to current month/year
+        const today = new Date();
+        document.getElementById("monthSelector").value = today.getMonth() + 1;
+        document.getElementById("yearSelector").value = today.getFullYear();
+        
+        loadAttendance();
+    });
+
+    async function loadAttendance() {
+        const month = document.getElementById("monthSelector").value;
+        const year = document.getElementById("yearSelector").value;
+        
+        try {
+            const res = await apiRequest(`/api/attendance?month=${month}&year=${year}`);
+            if (!res.ok) return;
+            const records = await res.json();
+            
+            renderTable(records);
+            calculateMetrics(records);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderTable(records) {
+        const tbody = document.getElementById("attendanceTableBody");
+        if (!tbody) return;
+
+        if (records.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-muted py-3">No attendance records found for selected period.</td></tr>';
+            return;
+        }
+
+        const showEmp = {% if session.role_name in ['Super Admin', 'HR Manager'] %}true{% else %}false{% endif %};
+        let html = "";
+        
+        records.forEach(r => {
+            const badge = r.status === 'Present' 
+                ? '<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Present</span>'
+                : r.status === 'Half Day'
+                ? '<span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3">Half Day</span>'
+                : r.status === 'Leave'
+                ? '<span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3">Leave</span>'
+                : '<span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3">Absent</span>';
+            
+            html += "<tr>";
+            html += `<td><span class="font-weight-bold text-dark">${r.date}</span></td>`;
+            if (showEmp) {
+                html += `<td>${r.employee_code || 'N/A'}</td>`;
+                html += `<td>${r.employee_name || 'N/A'}</td>`;
+            }
+            html += `<td>${r.check_in || 'N/A'}</td>`;
+            html += `<td>${r.check_out || 'Pending'}</td>`;
+            html += `<td>${r.working_hours}</td>`;
+            html += `<td>${r.overtime_hours}</td>`;
+            html += `<td>${badge}</td>`;
+            html += "</tr>";
+        });
+        
+        tbody.innerHTML = html;
+    }
+
+    function calculateMetrics(records) {
+        let present = 0, half = 0, leave = 0, absent = 0;
+        records.forEach(r => {
+            if (r.status === 'Present') present++;
+            else if (r.status === 'Half Day') half++;
+            else if (r.status === 'Leave') leave++;
+            else if (r.status === 'Absent') absent++;
+        });
+
+        document.getElementById("presentCount").innerText = present;
+        document.getElementById("halfDayCount").innerText = half;
+        document.getElementById("leaveCount").innerText = leave;
+        document.getElementById("absentCount").innerText = absent;
+    }
+</script>
+{% endblock %}

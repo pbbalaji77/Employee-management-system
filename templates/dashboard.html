@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Enterprise EMS{% endblock %}
+{% block header_title %}Analytics & Console{% endblock %}
+
+{% block content %}
+<!-- Metrics Cards Row -->
+<div class="row g-4 mb-4">
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="glass-card d-flex align-items-center gap-3">
+            <div class="widget-icon bg-opacity-10 bg-primary text-primary">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div>
+                <span class="text-muted small d-block">Total Headcount</span>
+                <h3 class="mb-0 font-weight-bold">{{ total_employees }}</h3>
+                <span class="text-success small"><i class="bi bi-arrow-up"></i> {{ active_employees }} Active</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="glass-card d-flex align-items-center gap-3">
+            <div class="widget-icon bg-opacity-10 bg-success text-success">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div>
+                <span class="text-muted small d-block">Today's Attendance</span>
+                <h3 class="mb-0 font-weight-bold">{{ today_present }} Present</h3>
+                <span class="text-muted small">{{ today_leave }} On Leave / {{ today_absent }} Absent</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="glass-card d-flex align-items-center gap-3">
+            <div class="widget-icon bg-opacity-10 bg-warning text-warning">
+                <i class="bi bi-calendar-check-fill"></i>
+            </div>
+            <div>
+                <span class="text-muted small d-block">Pending Approvals</span>
+                <h3 class="mb-0 font-weight-bold">{{ pending_leaves }}</h3>
+                <span class="text-danger small">Leave Applications</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-lg-3">
+        <div class="glass-card d-flex align-items-center gap-3">
+            <div class="widget-icon bg-opacity-10 bg-info text-info">
+                <i class="bi bi-building-fill"></i>
+            </div>
+            <div>
+                <span class="text-muted small d-block">Total Departments</span>
+                <h3 class="mb-0 font-weight-bold">{{ departments_count }}</h3>
+                <span class="text-muted small">Active divisions</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Attendance card check-in/out -->
+    {% if session.employee_id %}
+    <div class="col-12 col-lg-4">
+        <div class="glass-card h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h5 class="font-weight-bold mb-3"><i class="bi bi-credit-card-2-front-fill text-primary me-2"></i>Daily Time Card</h5>
+                <p class="text-muted small">Punch in at the start of your shift and punch out at the end. Working hours will be calculated automatically.</p>
+            </div>
+            <div class="my-4 text-center">
+                <div class="display-6 font-weight-bold mb-1" id="liveClock">00:00:00</div>
+                <div class="text-muted small" id="liveDate">Date loading...</div>
+            </div>
+            <div class="d-flex gap-3">
+                <button class="btn btn-primary rounded-pill w-100 py-2 font-weight-bold" id="btnCheckIn">
+                    <i class="bi bi-box-arrow-in-right me-1"></i> Check In
+                </button>
+                <button class="btn btn-outline-danger rounded-pill w-100 py-2 font-weight-bold" id="btnCheckOut">
+                    <i class="bi bi-box-arrow-right me-1"></i> Check Out
+                </button>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 col-lg-4">
+        <div class="glass-card h-100 d-flex flex-column justify-content-center align-items-center text-center p-4">
+            <div class="p-3 bg-light rounded-circle mb-3"><i class="bi bi-shield-lock-fill text-muted" style="font-size: 2.5rem;"></i></div>
+            <h5 class="font-weight-bold">Administrative Mode</h5>
+            <p class="text-muted small">You are logged in as a Super Admin. Personal time card punching is disabled for this account.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- AI Assistant chatbot -->
+    <div class="col-12 col-lg-8">
+        <div class="glass-card h-100 d-flex flex-column justify-content-between">
+            <h5 class="font-weight-bold mb-3"><i class="bi bi-cpu-fill text-info me-2"></i>AI Dashboard Assistant</h5>
+            <div class="chat-container d-flex flex-column" id="chatContainer">
+                <div class="chat-bubble bot">
+                    Hello! I am your AI assistant. You can ask me questions about company stats, e.g.:
+                    <ul>
+                        <li>"Who joined this month?"</li>
+                        <li>"Top performers?"</li>
+                        <li>"Employees absent today?"</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="input-group mt-3">
+                <input type="text" class="form-control px-3" id="chatInput" placeholder="Ask a dashboard question..." style="border-radius: 20px 0 0 20px;">
+                <button class="btn btn-primary px-4" id="btnChatSend" style="border-radius: 0 20px 20px 0;">
+                    <i class="bi bi-send-fill"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-4 mb-4">
+    <div class="col-12 col-lg-6">
+        <div class="glass-card">
+            <h5 class="font-weight-bold mb-3">Department-wise Employees</h5>
+            <div style="height: 300px;">
+                <canvas id="deptChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="glass-card">
+            <h5 class="font-weight-bold mb-3">Salary Distribution (INR)</h5>
+            <div style="height: 300px;">
+                <canvas id="salaryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-lg-8">
+        <div class="glass-card">
+            <h5 class="font-weight-bold mb-3">Employee Hiring Growth</h5>
+            <div style="height: 300px;">
+                <canvas id="hiringChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="glass-card">
+            <h5 class="font-weight-bold mb-3">Gender Demographics</h5>
+            <div style="height: 300px;">
+                <canvas id="genderChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include charts.js -->
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+    // Live clock script
+    function updateClock() {
+        const now = new Date();
+        const liveClock = document.getElementById("liveClock");
+        const liveDate = document.getElementById("liveDate");
+        if (liveClock) {
+            liveClock.innerText = now.toLocaleTimeString();
+        }
+        if (liveDate) {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            liveDate.innerText = now.toLocaleDateString(undefined, options);
+        }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // AI Chatbox Handler
+    const chatInput = document.getElementById("chatInput");
+    const btnSend = document.getElementById("btnChatSend");
+    const chatContainer = document.getElementById("chatContainer");
+
+    if (btnSend && chatInput) {
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // Add user bubble
+            appendBubble(text, "user");
+            chatInput.value = "";
+
+            try {
+                const res = await apiRequest("/api/ai/assistant", {
+                    method: "POST",
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    appendBubble(data.response, "bot");
+                } else {
+                    appendBubble("Sorry, I encountered an error answering that query.", "bot");
+                }
+            } catch (e) {
+                appendBubble("Network failure. Could not connect to AI services.", "bot");
+            }
+        }
+
+        btnSend.addEventListener("click", sendMessage);
+        chatInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendMessage();
+        });
+    }
+
+    function appendBubble(content, sender) {
+        const bubble = document.createElement("div");
+        bubble.className = `chat-bubble ${sender}`;
+        bubble.innerHTML = content;
+        chatContainer.appendChild(bubble);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+</script>
+{% endblock %}

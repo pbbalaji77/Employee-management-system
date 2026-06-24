@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll Dashboard - Enterprise EMS{% endblock %}
+{% block header_title %}Payroll & Compensation{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Generate Payroll Side Panel -->
+    <div class="col-12 col-lg-4">
+        <div class="glass-card mb-4">
+            <h5 class="font-weight-bold mb-3"><i class="bi bi-wallet-fill text-primary me-2"></i>Calculate Salary</h5>
+            <form id="calcPayrollForm">
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Select Employee</label>
+                    <select class="form-select" id="empSelect" name="employee_id" required>
+                        <option value="">Select Employee...</option>
+                        <!-- Dynamic options loaded via JS -->
+                    </select>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small font-weight-bold">Month</label>
+                        <select class="form-select" name="month" required>
+                            <option value="1">Jan</option>
+                            <option value="2">Feb</option>
+                            <option value="3">Mar</option>
+                            <option value="4">Apr</option>
+                            <option value="5">May</option>
+                            <option value="6">Jun</option>
+                            <option value="7">Jul</option>
+                            <option value="8">Aug</option>
+                            <option value="9">Sep</option>
+                            <option value="10">Oct</option>
+                            <option value="11">Nov</option>
+                            <option value="12">Dec</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small font-weight-bold">Year</label>
+                        <select class="form-select" name="year" required>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small font-weight-bold">Bonus (INR)</label>
+                        <input type="number" step="0.01" class="form-control" name="bonus" value="0.00">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small font-weight-bold">Incentives (INR)</label>
+                        <input type="number" step="0.01" class="form-control" name="incentives" value="0.00">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 font-weight-bold">Generate Payslip</button>
+            </form>
+        </div>
+
+        <div class="glass-card text-center">
+            <h5 class="font-weight-bold mb-2">Bulk Month Run</h5>
+            <p class="text-muted small mb-3">Batch-process payslips for all active employees who do not yet have a record for the target month.</p>
+            <form id="bulkPayrollForm">
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <select class="form-select" name="month" required>
+                            <option value="1">Jan</option>
+                            <option value="2">Feb</option>
+                            <option value="3">Mar</option>
+                            <option value="4">Apr</option>
+                            <option value="5">May</option>
+                            <option value="6">Jun</option>
+                            <option value="7">Jul</option>
+                            <option value="8">Aug</option>
+                            <option value="9">Sep</option>
+                            <option value="10">Oct</option>
+                            <option value="11">Nov</option>
+                            <option value="12">Dec</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <select class="form-select" name="year" required>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-outline-primary rounded-pill w-100 py-2 font-weight-bold">Run Batch Processing</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payroll Logs Column -->
+    <div class="col-12 col-lg-8">
+        <div class="glass-card h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="font-weight-bold mb-0">Disbursement History</h5>
+                <div class="col-4">
+                    <select class="form-select form-select-sm" id="historyYearFilter" onchange="loadPayrollHistory()">
+                        <option value="">All Years</option>
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table custom-table align-middle text-center">
+                    <thead>
+                        <tr>
+                            <th>Month/Year</th>
+                            <th>Employee ID</th>
+                            <th>Employee Name</th>
+                            <th>Net Pay (INR)</th>
+                            <th>Status</th>
+                            <th>Payslip</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payrollHistoryBody">
+                        <tr>
+                            <td colspan="6" class="text-muted py-3">Loading history...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        loadEmployeesDropdown();
+        loadPayrollHistory();
+
+        // Single generate handler
+        const calcForm = document.getElementById("calcPayrollForm");
+        if (calcForm) {
+            calcForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const payload = {
+                    employee_id: parseInt(calcForm.employee_id.value),
+                    month: parseInt(calcForm.month.value),
+                    year: parseInt(calcForm.year.value),
+                    bonus: parseFloat(calcForm.bonus.value),
+                    incentives: parseFloat(calcForm.incentives.value)
+                };
+
+                try {
+                    const res = await apiRequest("/api/payroll/calculate", {
+                        method: "POST",
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showToast(`Payslip generated successfully for ${data.employee_name}!`, "success");
+                        calcForm.reset();
+                        loadPayrollHistory();
+                    } else {
+                        showToast(data.message || "Failed to calculate payroll.", "danger");
+                    }
+                } catch (e) {
+                    showToast("Error processing calculations.", "danger");
+                }
+            });
+        }
+
+        // Bulk batch handler
+        const bulkForm = document.getElementById("bulkPayrollForm");
+        if (bulkForm) {
+            bulkForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const payload = {
+                    month: parseInt(bulkForm.month.value),
+                    year: parseInt(bulkForm.year.value)
+                };
+
+                if (!confirm(`Run batch salary processing for ALL active employees for ${payload.month}/${payload.year}?`)) return;
+
+                try {
+                    const res = await apiRequest("/api/payroll/generate-all", {
+                        method: "POST",
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showToast(data.message, "success");
+                        loadPayrollHistory();
+                    } else {
+                        showToast(data.message || "Batch run failed.", "danger");
+                    }
+                } catch (e) {
+                    showToast("Server request error.", "danger");
+                }
+            });
+        }
+    });
+
+    async function loadEmployeesDropdown() {
+        try {
+            const res = await apiRequest("/api/employees?per_page=100");
+            if (!res.ok) return;
+            const data = await res.json();
+            
+            const select = document.getElementById("empSelect");
+            if (!select) return;
+            
+            let html = '<option value="">Select Employee...</option>';
+            data.employees.forEach(emp => {
+                html += `<option value="${emp.id}">${emp.full_name} (${emp.employee_id})</option>`;
+            });
+            select.innerHTML = html;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function loadPayrollHistory() {
+        const year = document.getElementById("historyYearFilter").value;
+        let url = "/api/payroll";
+        if (year) url += `?year=${year}`;
+
+        try {
+            const res = await apiRequest(url);
+            if (!res.ok) return;
+            const records = await res.json();
+            
+            const tbody = document.getElementById("payrollHistoryBody");
+            if (!tbody) return;
+
+            if (records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-muted py-3">No payslip disbursements recorded.</td></tr>';
+                return;
+            }
+
+            let html = "";
+            records.forEach(r => {
+                html += `
+                    <tr>
+                        <td><span class="font-weight-bold text-dark">${r.month.toString().padStart(2, '0')}/${r.year}</span></td>
+                        <td>${r.employee_code || 'N/A'}</td>
+                        <td>${r.employee_name || 'N/A'}</td>
+                        <td>INR ${r.net_salary.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                        <td><span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">${r.status}</span></td>
+                        <td>
+                            <a href="/api/payroll/download/${r.id}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                <i class="bi bi-file-earmark-pdf-fill"></i> PDF
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+</script>
+{% endblock %}

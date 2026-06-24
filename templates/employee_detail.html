@@ -1,0 +1,562 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Profile - Enterprise EMS{% endblock %}
+{% block header_title %}Employee Profile{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Bio Info Column -->
+    <div class="col-12 col-lg-4">
+        <div class="glass-card text-center py-4">
+            <div class="position-relative d-inline-block mb-3">
+                <img src="{{ url_for('static', filename=employee.profile_photo or 'uploads/profiles/default.png') }}" class="rounded-circle border border-3" width="120" height="120" style="object-fit: cover;">
+                {% if session.role_name in ['Super Admin', 'HR Manager'] %}
+                <span class="position-absolute bottom-0 end-0 bg-primary text-white p-2 rounded-circle border border-2 cursor-pointer" onclick="document.getElementById('profilePhotoInput').click()" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;" title="Upload photo">
+                    <i class="bi bi-camera-fill"></i>
+                </span>
+                <input type="file" id="profilePhotoInput" style="display: none;" accept="image/*" onchange="uploadProfilePhoto()">
+                {% endif %}
+            </div>
+            
+            <h4 class="font-weight-bold mb-1">{{ employee.full_name }}</h4>
+            <p class="text-muted small mb-2">{{ employee.designation or 'Associate' }}</p>
+            <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2 small mb-3">{{ employee.employee_id }}</span>
+            
+            <hr class="my-3 opacity-25">
+            
+            <div class="text-start px-2">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted small">Department:</span>
+                    <span class="font-weight-bold small">{{ employee.department.department_name if employee.department else 'N/A' }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted small">Joining Date:</span>
+                    <span class="font-weight-bold small">{{ employee.joining_date or 'N/A' }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted small">Status:</span>
+                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill">{{ 'Active' if employee.active_status else 'Inactive' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Tabs Column -->
+    <div class="col-12 col-lg-8">
+        <div class="glass-card">
+            <!-- Nav Tabs -->
+            <ul class="nav nav-tabs border-bottom mb-4" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active font-weight-bold" data-bs-toggle="tab" data-bs-target="#personalInfo" type="button">Personal Info</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link font-weight-bold" data-bs-toggle="tab" data-bs-target="#workInfo" type="button">Work Details</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link font-weight-bold" data-bs-toggle="tab" data-bs-target="#attendanceLog" type="button">Attendance</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link font-weight-bold" data-bs-toggle="tab" data-bs-target="#leaveHistory" type="button">Leaves</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link font-weight-bold" data-bs-toggle="tab" data-bs-target="#payrollSlips" type="button">Payroll</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link font-weight-bold" data-bs-toggle="tab" data-bs-target="#appraisalHistory" type="button">Appraisals</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link font-weight-bold" data-bs-toggle="tab" data-bs-target="#documentsCabinet" type="button">Documents</button>
+                </li>
+            </ul>
+
+            <!-- Tab Contents -->
+            <div class="tab-content">
+                <!-- Personal Info Tab -->
+                <div class="tab-pane fade show active" id="personalInfo">
+                    <form id="editPersonalForm">
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">First Name</label>
+                                <input type="text" class="form-control" name="first_name" value="{{ employee.first_name }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Last Name</label>
+                                <input type="text" class="form-control" name="last_name" value="{{ employee.last_name }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Mobile Number</label>
+                                <input type="text" class="form-control" name="mobile_number" value="{{ employee.mobile_number }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Emergency Contact</label>
+                                <input type="text" class="form-control" name="emergency_contact" value="{{ employee.emergency_contact }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Gender</label>
+                                <select class="form-select" name="gender" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                    <option value="Male" {% if employee.gender == 'Male' %}selected{% endif %}>Male</option>
+                                    <option value="Female" {% if employee.gender == 'Female' %}selected{% endif %}>Female</option>
+                                    <option value="Other" {% if employee.gender == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Date of Birth</label>
+                                <input type="date" class="form-control" name="date_of_birth" value="{{ employee.date_of_birth }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Blood Group</label>
+                                <input type="text" class="form-control" name="blood_group" value="{{ employee.blood_group }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Marital Status</label>
+                                <select class="form-select" name="marital_status" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                    <option value="Single" {% if employee.marital_status == 'Single' %}selected{% endif %}>Single</option>
+                                    <option value="Married" {% if employee.marital_status == 'Married' %}selected{% endif %}>Married</option>
+                                    <option value="Divorced" {% if employee.marital_status == 'Divorced' %}selected{% endif %}>Divorced</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Aadhaar Card Number</label>
+                                <input type="text" class="form-control" name="aadhaar_number" value="{{ employee.aadhaar_number }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">PAN Card Number</label>
+                                <input type="text" class="form-control" name="pan_number" value="{{ employee.pan_number }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small font-weight-bold">Home Address</label>
+                                <input type="text" class="form-control" name="address" value="{{ employee.address }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label class="form-label small font-weight-bold">City</label>
+                                <input type="text" class="form-control" name="city" value="{{ employee.city }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label class="form-label small font-weight-bold">State</label>
+                                <input type="text" class="form-control" name="state" value="{{ employee.state }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label class="form-label small font-weight-bold">Postal Code</label>
+                                <input type="text" class="form-control" name="postal_code" value="{{ employee.postal_code }}" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                        </div>
+                        {% if session.role_name in ['Super Admin', 'HR Manager'] %}
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4">Save Changes</button>
+                        </div>
+                        {% endif %}
+                    </form>
+                </div>
+
+                <!-- Work Details Tab -->
+                <div class="tab-pane fade" id="workInfo">
+                    <form id="editWorkForm">
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Designation</label>
+                                <input type="text" class="form-control" name="designation" value="{{ employee.designation }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Department</label>
+                                <select class="form-select" name="department_id" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                    {% for d in departments %}
+                                    <option value="{{ d.id }}" {% if employee.department_id == d.id %}selected{% endif %}>{{ d.department_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Monthly Gross Salary (INR)</label>
+                                <input type="number" step="0.01" class="form-control" name="salary" value="{{ employee.salary }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Employment Type</label>
+                                <select class="form-select" name="employment_type" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                    <option value="Full-Time" {% if employee.employment_type == 'Full-Time' %}selected{% endif %}>Full-Time</option>
+                                    <option value="Part-Time" {% if employee.employment_type == 'Part-Time' %}selected{% endif %}>Part-Time</option>
+                                    <option value="Contract" {% if employee.employment_type == 'Contract' %}selected{% endif %}>Contract</option>
+                                    <option value="Intern" {% if employee.employment_type == 'Intern' %}selected{% endif %}>Intern</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Joining Date</label>
+                                <input type="date" class="form-control" name="joining_date" value="{{ employee.joining_date }}" required {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Reporting Manager</label>
+                                <select class="form-select" name="manager_id" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                    <option value="">None</option>
+                                    {% for m in managers %}
+                                    <option value="{{ m.id }}" {% if employee.manager_id == m.id %}selected{% endif %}>{{ m.full_name }} ({{ m.designation }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <label class="form-label small font-weight-bold">Portal Active Status</label>
+                                <select class="form-select" name="active_status" {% if session.role_name not in ['Super Admin', 'HR Manager'] %}disabled{% endif %}>
+                                    <option value="true" {% if employee.active_status %}selected{% endif %}>Active (Allows portal login)</option>
+                                    <option value="false" {% if not employee.active_status %}selected{% endif %}>Inactive (Blocks portal login)</option>
+                                </select>
+                            </div>
+                        </div>
+                        {% if session.role_name in ['Super Admin', 'HR Manager'] %}
+                        <div class="text-end mt-4">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4">Save Changes</button>
+                        </div>
+                        {% endif %}
+                    </form>
+                </div>
+
+                <!-- Attendance Tab -->
+                <div class="tab-pane fade" id="attendanceLog">
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle text-center">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Working Hours</th>
+                                    <th>Overtime (Hrs)</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if not attendance %}
+                                <tr>
+                                    <td colspan="6" class="text-muted py-3">No attendance records registered.</td>
+                                </tr>
+                                {% else %}
+                                {% for att in attendance %}
+                                <tr>
+                                    <td><span class="font-weight-bold">{{ att.date }}</span></td>
+                                    <td>{{ att.check_in.strftime('%H:%M:%S') if att.check_in else 'N/A' }}</td>
+                                    <td>{{ att.check_out.strftime('%H:%M:%S') if att.check_out else 'Pending' }}</td>
+                                    <td>{{ att.working_hours }}</td>
+                                    <td>{{ att.overtime_hours }}</td>
+                                    <td>
+                                        {% if att.status == 'Present' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">{{ att.status }}</span>
+                                        {% elif att.status == 'Half Day' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3">{{ att.status }}</span>
+                                        {% elif att.status == 'Leave' %}
+                                        <span class="badge bg-info bg-opacity-10 text-info rounded-pill px-3">{{ att.status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3">{{ att.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Leave Tab -->
+                <div class="tab-pane fade" id="leaveHistory">
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle text-center">
+                            <thead>
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if not leaves %}
+                                <tr>
+                                    <td colspan="6" class="text-muted py-3">No leave applications submitted.</td>
+                                </tr>
+                                {% else %}
+                                {% for l in leaves %}
+                                <tr>
+                                    <td><span class="font-weight-bold">{{ l.leave_type }}</span></td>
+                                    <td>{{ l.start_date }}</td>
+                                    <td>{{ l.end_date }}</td>
+                                    <td>{{ l.duration_days }}</td>
+                                    <td class="text-truncate" style="max-width: 150px;">{{ l.reason or '' }}</td>
+                                    <td>
+                                        {% if l.status == 'Approved' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">{{ l.status }}</span>
+                                        {% elif l.status == 'Pending' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3">{{ l.status }}</span>
+                                        {% else %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3">{{ l.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Payroll Tab -->
+                <div class="tab-pane fade" id="payrollSlips">
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle text-center">
+                            <thead>
+                                <tr>
+                                    <th>Month/Year</th>
+                                    <th>Basic Salary</th>
+                                    <th>HRA</th>
+                                    <th>Deductions</th>
+                                    <th>Tax</th>
+                                    <th>Net Take-home</th>
+                                    <th>Payslip PDF</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if not payroll %}
+                                <tr>
+                                    <td colspan="7" class="text-muted py-3">No payslips generated yet.</td>
+                                </tr>
+                                {% else %}
+                                {% for pay in payroll %}
+                                <tr>
+                                    <td><span class="font-weight-bold">{{ "%02d/%d"|format(pay.month, pay.year) }}</span></td>
+                                    <td>INR {{ pay.basic_salary }}</td>
+                                    <td>INR {{ pay.hra }}</td>
+                                    <td>INR {{ pay.deductions }}</td>
+                                    <td>INR {{ pay.tax }}</td>
+                                    <td><span class="text-success font-weight-bold">INR {{ pay.net_salary }}</span></td>
+                                    <td>
+                                        <a href="/api/payroll/download/{{ pay.id }}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                            <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Appraisal Tab -->
+                <div class="tab-pane fade" id="appraisalHistory">
+                    {% if not reviews %}
+                    <p class="text-muted py-3 text-center">No performance reviews written yet.</p>
+                    {% else %}
+                    {% for r in reviews %}
+                    <div class="card p-3 mb-3 bg-light border-0" style="border-radius: 12px;">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="font-weight-bold text-primary">{{ r.review_period }} Appraisal</span>
+                            <span class="text-muted small">{{ r.created_at }}</span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Rating:</strong>
+                            <span class="text-warning">
+                                {% for _ in range(r.rating) %}<i class="bi bi-star-fill"></i>{% endfor %}
+                                {% for _ in range(5 - r.rating) %}<i class="bi bi-star"></i>{% endfor %}
+                            </span>
+                            <strong class="ms-3">Goal Achievement:</strong> {{ r.goal_achievement }}%
+                        </div>
+                        <div class="mb-2">
+                            <strong>Manager Feedback ({{ r.reviewer_name }}):</strong>
+                            <p class="mb-0 text-muted small">{{ r.manager_feedback }}</p>
+                        </div>
+                        <div>
+                            <strong>Employee Response:</strong>
+                            {% if r.employee_feedback %}
+                            <p class="mb-0 text-muted small">{{ r.employee_feedback }}</p>
+                            {% elif session.employee_id == employee.id %}
+                            <!-- Self feedback response -->
+                            <div class="input-group mt-2">
+                                <input type="text" class="form-control" id="selfFeedbackInput_{{ r.id }}" placeholder="Write response feedback...">
+                                <button class="btn btn-outline-primary" onclick="submitAppraisalFeedback({{ r.id }})">Submit Response</button>
+                            </div>
+                            {% else %}
+                            <p class="mb-0 text-muted small italic">No response submitted yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Documents Tab -->
+                <div class="tab-pane fade" id="documentsCabinet">
+                    <!-- Upload box -->
+                    <div class="mb-4 bg-light p-3 rounded-4 border">
+                        <h6 class="font-weight-bold mb-2">Upload Document</h6>
+                        <form id="docUploadForm" class="row g-3 align-items-center">
+                            <div class="col-12 col-md-5">
+                                <input type="file" class="form-control" name="file" accept=".pdf, .png, .jpg, .jpeg, .doc, .docx, .txt" required>
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <select class="form-select" name="document_type" required>
+                                    <option value="">Document Type...</option>
+                                    <option value="Resume">Resume</option>
+                                    <option value="Certificates">Certificate</option>
+                                    <option value="Offer Letter">Offer Letter</option>
+                                    <option value="ID Proof">ID Proof</option>
+                                    <option value="Experience Letter">Experience Letter</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-3">
+                                <button type="submit" class="btn btn-primary rounded-pill w-100">Upload</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Files Table -->
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Document Name</th>
+                                    <th>Type</th>
+                                    <th>Upload Date</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if not documents %}
+                                <tr>
+                                    <td colspan="4" class="text-muted text-center py-3">No documents uploaded.</td>
+                                </tr>
+                                {% else %}
+                                {% for d in documents %}
+                                <tr>
+                                    <td><span class="font-weight-bold text-primary">{{ d.document_name }}</span></td>
+                                    <td>{{ d.document_type }}</td>
+                                    <td>{{ d.uploaded_at }}</td>
+                                    <td class="text-end">
+                                        <a href="/api/documents/{{ d.id }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3 me-1" target="_blank">
+                                            <i class="bi bi-download"></i> View
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger rounded-circle" onclick="deleteDocument({{ d.id }})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Edit Personal form submit
+        const personalForm = document.getElementById("editPersonalForm");
+        if (personalForm) {
+            personalForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const formData = new FormData(personalForm);
+                await updateEmployeeData(formData);
+            });
+        }
+
+        // Edit Work form submit
+        const workForm = document.getElementById("editWorkForm");
+        if (workForm) {
+            workForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const formData = new FormData(workForm);
+                await updateEmployeeData(formData);
+            });
+        }
+
+        // Document upload submit
+        const docForm = document.getElementById("docUploadForm");
+        if (docForm) {
+            docForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const formData = new FormData(docForm);
+                try {
+                    const res = await apiRequest(`/api/documents?employee_id={{ employee.id }}`, {
+                        method: "POST",
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showToast(`Document uploaded successfully!`, "success");
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showToast(data.message || "Failed to upload document.", "danger");
+                    }
+                } catch (e) {
+                    showToast("Error uploading file.", "danger");
+                }
+            });
+        }
+    });
+
+    async function updateEmployeeData(formData) {
+        try {
+            const res = await apiRequest("/api/employees/{{ employee.id }}", {
+                method: "PUT",
+                body: formData
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast("Profile updated successfully!", "success");
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast(data.message || "Update failed.", "danger");
+            }
+        } catch (e) {
+            showToast("Connection error occurred.", "danger");
+        }
+    }
+
+    async function uploadProfilePhoto() {
+        const fileInput = document.getElementById("profilePhotoInput");
+        if (fileInput.files.length === 0) return;
+        
+        const formData = new FormData();
+        formData.append("profile_photo", fileInput.files[0]);
+        await updateEmployeeData(formData);
+    }
+
+    async function deleteDocument(id) {
+        if (!confirm("Are you sure you want to delete this document from the cabinet?")) return;
+        try {
+            const res = await apiRequest(`/api/documents/${id}`, { method: "DELETE" });
+            if (res.ok) {
+                showToast("Document deleted successfully.", "success");
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast("Failed to delete document.", "danger");
+            }
+        } catch (e) {
+            showToast("Server communication error.", "danger");
+        }
+    }
+
+    async function submitAppraisalFeedback(reviewId) {
+        const input = document.getElementById(`selfFeedbackInput_${reviewId}`);
+        const text = input.value.trim();
+        if (!text) return;
+        
+        try {
+            const res = await apiRequest(`/api/performance/${reviewId}/feedback`, {
+                method: "PUT",
+                body: JSON.stringify({ employee_feedback: text })
+            });
+            if (res.ok) {
+                showToast("Response submitted successfully!", "success");
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast("Failed to submit response.", "danger");
+            }
+        } catch (e) {
+            showToast("Network error.", "danger");
+        }
+    }
+</script>
+{% endblock %}

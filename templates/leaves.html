@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Leave Management - Enterprise EMS{% endblock %}
+{% block header_title %}Leave Management{% endblock %}
+
+{% block content %}
+<!-- Leave Balances Widgets Row -->
+<div class="row g-4 mb-4">
+    {% for l_type, b in balances.items() %}
+    <div class="col-6 col-sm-4 col-md-3 col-lg">
+        <div class="glass-card text-center py-3">
+            <span class="text-muted small d-block mb-1">{{ l_type }}</span>
+            <h3 class="mb-0 font-weight-bold text-primary">{{ b.remaining }}</h3>
+            <span class="text-muted small" style="font-size: 0.75rem;">Taken: {{ b.taken }} / Limit: {{ b.limit }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row g-4">
+    <!-- Apply Leave Form Column -->
+    <div class="col-12 col-lg-4">
+        <div class="glass-card">
+            <h5 class="font-weight-bold mb-3"><i class="bi bi-calendar-plus-fill text-primary me-2"></i>Apply for Leave</h5>
+            <form id="applyLeaveForm">
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Leave Type</label>
+                    <select class="form-select" name="leave_type" required>
+                        <option value="">Select Type...</option>
+                        <option value="Casual Leave">Casual Leave</option>
+                        <option value="Sick Leave">Sick Leave</option>
+                        <option value="Paid Leave">Paid Leave</option>
+                        <option value="Maternity Leave">Maternity Leave</option>
+                        <option value="Emergency Leave">Emergency Leave</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Start Date</label>
+                    <input type="date" class="form-control" name="start_date" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">End Date</label>
+                    <input type="date" class="form-control" name="end_date" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Reason for Leave</label>
+                    <textarea class="form-control" name="reason" rows="3" placeholder="Brief explanation..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary rounded-pill w-100 py-2 font-weight-bold">Submit Application</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leaves Lists Column -->
+    <div class="col-12 col-lg-8">
+        <div class="glass-card">
+            <!-- Nav Tabs -->
+            <ul class="nav nav-tabs border-bottom mb-3" id="leaveTabs">
+                <li class="nav-item">
+                    <button class="nav-link active font-weight-bold" id="myLeavesTab" data-bs-toggle="tab" data-bs-target="#myLeavesPanel">My Applications</button>
+                </li>
+                {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
+                <li class="nav-item">
+                    <button class="nav-link font-weight-bold" id="approvalsTab" data-bs-toggle="tab" data-bs-target="#approvalsPanel">
+                        Pending Approvals
+                        <span class="badge bg-danger ms-1" id="pendingApprovalsBadge" style="display: none;">0</span>
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+
+            <div class="tab-content">
+                <!-- My Applications Panel -->
+                <div class="tab-pane fade show active" id="myLeavesPanel">
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle text-center">
+                            <thead>
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myLeavesTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-muted py-3">Loading leaves history...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Manager Approvals Panel -->
+                {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
+                <div class="tab-pane fade" id="approvalsPanel">
+                    <div class="table-responsive">
+                        <table class="table custom-table align-middle text-center">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Leave Type</th>
+                                    <th>Dates</th>
+                                    <th>Duration</th>
+                                    <th>Reason</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="approvalsTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-muted py-3">No pending applications.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        loadMyLeaves();
+        {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
+        loadPendingApprovals();
+        {% endif %}
+
+        // Form apply handler
+        const applyForm = document.getElementById("applyLeaveForm");
+        if (applyForm) {
+            applyForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const payload = {
+                    leave_type: applyForm.leave_type.value,
+                    start_date: applyForm.start_date.value,
+                    end_date: applyForm.end_date.value,
+                    reason: applyForm.reason.value
+                };
+
+                try {
+                    const res = await apiRequest("/api/leaves", {
+                        method: "POST",
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        showToast("Leave request submitted successfully!", "success");
+                        applyForm.reset();
+                        loadMyLeaves();
+                        // Reload balances row (simulate reloading page after timeout)
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showToast(data.message || "Failed to submit request.", "danger");
+                    }
+                } catch (e) {
+                    showToast("Error sending application.", "danger");
+                }
+            });
+        }
+    });
+
+    async function loadMyLeaves() {
+        try {
+            const res = await apiRequest("/api/leaves");
+            if (!res.ok) return;
+            const leaves = await res.json();
+            
+            const tbody = document.getElementById("myLeavesTableBody");
+            if (!tbody) return;
+
+            if (leaves.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-muted py-3">No leaves logged.</td></tr>';
+                return;
+            }
+
+            let html = "";
+            leaves.forEach(l => {
+                const badge = l.status === 'Approved' 
+                    ? '<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Approved</span>'
+                    : l.status === 'Pending'
+                    ? '<span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3">Pending</span>'
+                    : '<span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3">Rejected</span>';
+                
+                html += `
+                    <tr>
+                        <td><span class="font-weight-bold text-dark">${l.leave_type}</span></td>
+                        <td>${l.start_date}</td>
+                        <td>${l.end_date}</td>
+                        <td>${l.duration_days} Days</td>
+                        <td>${badge}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
+    async function loadPendingApprovals() {
+        try {
+            const res = await apiRequest("/api/leaves?status=Pending");
+            if (!res.ok) return;
+            const leaves = await res.json();
+            
+            // Update badge count
+            const badge = document.getElementById("pendingApprovalsBadge");
+            if (badge) {
+                badge.innerText = leaves.length;
+                badge.style.display = leaves.length > 0 ? "inline-block" : "none";
+            }
+
+            const tbody = document.getElementById("approvalsTableBody");
+            if (!tbody) return;
+
+            if (leaves.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-muted py-3">No pending applications found.</td></tr>';
+                return;
+            }
+
+            let html = "";
+            leaves.forEach(l => {
+                html += `
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <span class="font-weight-bold text-dark">${l.employee_name}</span>
+                                <span class="badge bg-light text-muted small">${l.employee_code}</span>
+                            </div>
+                        </td>
+                        <td>${l.leave_type}</td>
+                        <td>${l.start_date} to ${l.end_date}</td>
+                        <td>${l.duration_days} Days</td>
+                        <td class="text-truncate" style="max-width: 150px;" title="${l.reason || ''}">${l.reason || 'N/A'}</td>
+                        <td class="text-end">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button class="btn btn-sm btn-success rounded-pill px-3" onclick="processLeave(${l.id}, 'Approved')">Approve</button>
+                                <button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="processLeave(${l.id}, 'Rejected')">Reject</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    async function processLeave(id, action) {
+        const feedback = prompt(`Enter comments/feedback for this ${action.toLowerCase()} action (optional):`);
+        if (feedback === null) return; // Cancelled prompt
+        
+        try {
+            const res = await apiRequest(`/api/leaves/${id}/action`, {
+                method: "POST",
+                body: JSON.stringify({ action: action, feedback: feedback })
+            });
+            if (res.ok) {
+                showToast(`Leave request ${action.toLowerCase()} successfully.`, "success");
+                loadPendingApprovals();
+                loadMyLeaves();
+            } else {
+                showToast("Failed to process request.", "danger");
+            }
+        } catch (e) {
+            showToast("Server request error.", "danger");
+        }
+    }
+    {% endif %}
+</script>
+{% endblock %}

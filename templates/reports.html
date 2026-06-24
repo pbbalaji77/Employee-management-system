@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Reports Centre - Enterprise EMS{% endblock %}
+{% block header_title %}Reports & Exports Centre{% endblock %}
+
+{% block content %}
+<div class="glass-card mb-4">
+    <h5 class="font-weight-bold mb-1">Generate Export Logs</h5>
+    <p class="text-muted small mb-4">Select a report module, specify filter parameters, and choose your target download file format.</p>
+
+    <div class="row g-4">
+        <!-- 1. Employee Directory Card -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card p-3 h-100 bg-light border-0" style="border-radius: 12px;">
+                <h6 class="font-weight-bold text-primary"><i class="bi bi-people-fill me-2"></i>Employee Master Directory</h6>
+                <p class="text-muted small">Roster spreadsheet displaying code, name, designation, department, and joins details.</p>
+                <div class="mb-3">
+                    <label class="form-label small">Department filter</label>
+                    <select class="form-select form-select-sm" id="repDeptFilter">
+                        <option value="">All Departments</option>
+                        {% for d in departments %}
+                        <option value="{{ d.id }}">{{ d.department_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="d-flex gap-2 mt-auto">
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="triggerExport('employees', 'csv', 'repDeptFilter')">CSV</button>
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="triggerExport('employees', 'excel', 'repDeptFilter')">Excel</button>
+                    <button class="btn btn-sm btn-outline-success w-100" onclick="triggerExport('employees', 'pdf', 'repDeptFilter')">PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Attendance History Card -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card p-3 h-100 bg-light border-0" style="border-radius: 12px;">
+                <h6 class="font-weight-bold text-success"><i class="bi bi-clock-history me-2"></i>Attendance Log Reports</h6>
+                <p class="text-muted small">Timesheet logs showing check-in/out stamps, working hours, and overtime calculations.</p>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small">Month</label>
+                        <select class="form-select form-select-sm" id="repAttMonth">
+                            <option value="1">Jan</option>
+                            <option value="2">Feb</option>
+                            <option value="3">Mar</option>
+                            <option value="4">Apr</option>
+                            <option value="5">May</option>
+                            <option value="6">Jun</option>
+                            <option value="7">Jul</option>
+                            <option value="8">Aug</option>
+                            <option value="9">Sep</option>
+                            <option value="10">Oct</option>
+                            <option value="11">Nov</option>
+                            <option value="12">Dec</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Year</label>
+                        <select class="form-select form-select-sm" id="repAttYear">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-auto">
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="triggerExportTime('attendance', 'csv', 'repAttMonth', 'repAttYear')">CSV</button>
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="triggerExportTime('attendance', 'excel', 'repAttMonth', 'repAttYear')">Excel</button>
+                    <button class="btn btn-sm btn-outline-success w-100" onclick="triggerExportTime('attendance', 'pdf', 'repAttMonth', 'repAttYear')">PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Leave Requests Card -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card p-3 h-100 bg-light border-0" style="border-radius: 12px;">
+                <h6 class="font-weight-bold text-warning"><i class="bi bi-calendar2-week-fill me-2"></i>Leaves Application Ledger</h6>
+                <p class="text-muted small">Summary of leave allocations, reasons, durations, and manager approvals logs.</p>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small">Month</label>
+                        <select class="form-select form-select-sm" id="repLeaveMonth">
+                            <option value="1">Jan</option>
+                            <option value="2">Feb</option>
+                            <option value="3">Mar</option>
+                            <option value="4">Apr</option>
+                            <option value="5">May</option>
+                            <option value="6">Jun</option>
+                            <option value="7">Jul</option>
+                            <option value="8">Aug</option>
+                            <option value="9">Sep</option>
+                            <option value="10">Oct</option>
+                            <option value="11">Nov</option>
+                            <option value="12">Dec</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Year</label>
+                        <select class="form-select form-select-sm" id="repLeaveYear">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-auto">
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="triggerExportTime('leaves', 'csv', 'repLeaveMonth', 'repLeaveYear')">CSV</button>
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="triggerExportTime('leaves', 'excel', 'repLeaveMonth', 'repLeaveYear')">Excel</button>
+                    <button class="btn btn-sm btn-outline-success w-100" onclick="triggerExportTime('leaves', 'pdf', 'repLeaveMonth', 'repLeaveYear')">PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Payroll Ledger Card -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card p-3 h-100 bg-light border-0" style="border-radius: 12px;">
+                <h6 class="font-weight-bold text-info"><i class="bi bi-wallet2 me-2"></i>Payroll Disbursement Logs</h6>
+                <p class="text-muted small">Compensation register detailing base salaries, tax cuts, deductions, and net pays.</p>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small">Month</label>
+                        <select class="form-select form-select-sm" id="repPayMonth">
+                            <option value="1">Jan</option>
+                            <option value="2">Feb</option>
+                            <option value="3">Mar</option>
+                            <option value="4">Apr</option>
+                            <option value="5">May</option>
+                            <option value="6">Jun</option>
+                            <option value="7">Jul</option>
+                            <option value="8">Aug</option>
+                            <option value="9">Sep</option>
+                            <option value="10">Oct</option>
+                            <option value="11">Nov</option>
+                            <option value="12">Dec</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small">Year</label>
+                        <select class="form-select form-select-sm" id="repPayYear">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-auto">
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="triggerExportTime('payroll', 'csv', 'repPayMonth', 'repPayYear')">CSV</button>
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="triggerExportTime('payroll', 'excel', 'repPayMonth', 'repPayYear')">Excel</button>
+                    <button class="btn btn-sm btn-outline-success w-100" onclick="triggerExportTime('payroll', 'pdf', 'repPayMonth', 'repPayYear')">PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Departments Allocation Card -->
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card p-3 h-100 bg-light border-0" style="border-radius: 12px;">
+                <h6 class="font-weight-bold text-dark"><i class="bi bi-building me-2"></i>Department Budgets Overview</h6>
+                <p class="text-muted small">Overview metrics summarizing division descriptions, heads of departments, budgets, and headcounts.</p>
+                <div class="mb-4">
+                    <span class="text-muted small italic">No filter options available for this static aggregate report.</span>
+                </div>
+                <div class="d-flex gap-2 mt-auto">
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="triggerExport('departments', 'csv')">CSV</button>
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="triggerExport('departments', 'excel')">Excel</button>
+                    <button class="btn btn-sm btn-outline-success w-100" onclick="triggerExport('departments', 'pdf')">PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Set defaults to current date
+        const today = new Date();
+        const m = today.getMonth() + 1;
+        const y = today.getFullYear();
+        
+        if (document.getElementById("repAttMonth")) document.getElementById("repAttMonth").value = m;
+        if (document.getElementById("repAttYear")) document.getElementById("repAttYear").value = y;
+        if (document.getElementById("repLeaveMonth")) document.getElementById("repLeaveMonth").value = m;
+        if (document.getElementById("repLeaveYear")) document.getElementById("repLeaveYear").value = y;
+        if (document.getElementById("repPayMonth")) document.getElementById("repPayMonth").value = m;
+        if (document.getElementById("repPayYear")) document.getElementById("repPayYear").value = y;
+    });
+
+    function triggerExport(type, format, filterId = null) {
+        let url = `/api/reports/export?type=${type}&format=${format}`;
+        if (filterId) {
+            const val = document.getElementById(filterId).value;
+            if (val) url += `&department_id=${val}`;
+        }
+        
+        window.open(url, '_blank');
+    }
+
+    function triggerExportTime(type, format, monthId, yearId) {
+        const m = document.getElementById(monthId).value;
+        const y = document.getElementById(yearId).value;
+        
+        let url = `/api/reports/export?type=${type}&format=${format}&month=${m}&year=${y}`;
+        window.open(url, '_blank');
+    }
+</script>
+{% endblock %}
