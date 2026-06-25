@@ -10,7 +10,8 @@ attendance_bp = Blueprint('attendance', __name__)
 @attendance_bp.route('/attendance')
 @login_required
 def attendance_view():
-    return render_template('attendance.html')
+    employees = Employee.query.filter_by(status='Active').order_by(Employee.full_name).all()
+    return render_template('attendance.html', employees=employees)
 
 # ----------------- REST APIs -----------------
 
@@ -152,3 +153,98 @@ def api_attendance_summary():
         'absent': absent_cnt,
         'not_marked': not_marked
     }), 200
+
+@attendance_bp.route('/api/attendance/mark', methods=['POST'])
+@token_required
+@api_role_required('Super Admin', 'HR Manager')
+def api_mark_attendance():
+    """Manually mark or update employee attendance for a specific date (recorded by HR)"""
+    data = request.get_json() or {}
+    emp_id = data.get('employee_id')
+    date_str = data.get('date')
+    status = data.get('status')
+    
+    if not emp_id or not date_str or not status:
+        return jsonify({'message': 'employee_id, date, and status are required'}), 400
+        
+    emp = Employee.query.get_or_404(emp_id)
+    
+    try:
+        log_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'message': 'Invalid date format. Use YYYY-MM-DD'}), 400
+        
+    if status not in ['Present', 'Absent', 'Half Day', 'Leave']:
+        return jsonify({'message': 'Invalid status. Choose Present, Absent, Half Day, or Leave'}), 400
+
+    # Check if record already exists for this date and employee
+    record = Attendance.query.filter_by(employee_id=emp.id, date=log_date).first()
+    
+    check_in_time = None
+    check_out_time = None
+    working_h = 0.0
+    overtime_h = 0.0
+    
+    if status in ['Present', 'Half Day']:
+        check_in_str = data.get('check_in') or '09:00'
+        check_out_str = data.get('check_out') or '17:00'
+        
+        try:
+            check_in_time = datetime.strptime(check_in_str, '%H:%M').time()
+            check_out_time = datetime.strptime(check_out_str, '%H:%M').time()
+        except ValueError:
+            return jsonify({'message': 'Invalid time format. Use HH:MM'}), 400
+            
+        # Compute working hours
+        checkin_dt = datetime.combine(log_date, check_in_time)
+        checkout_dt = datetime.combine(log_date, check_out_time)
+        if checkout_dt < checkin_dt:
+            return jsonify({'message': 'Check out time must be after check in time'}), 400
+            
+        diff = (checkout_dt - checkin_dt).total_seconds() / 3600.0
+        working_h = round(diff, 2)
+        
+        # Overtime logic (assuming standard 8 hour workday)
+        if working_h > 8.0:
+            overtime_h = round(working_h - 8.0, 2)
+            working_h = 8.0
+            
+    if record:
+        # Update existing record
+        record.status = status
+        record.check_in = check_in_time
+        record.check_out = check_out_time
+        record.working_hours = working_h
+        record.overtime_hours = overtime_h
+    else:
+        # Create new record
+        record = Attendance(
+            employee_id=emp.id,
+            date=log_date,
+            check_in=check_in_time,
+            check_out=check_out_time,
+            working_hours=working_h,
+            overtime_hours=overtime_h,
+            status=status
+        )
+        db.session.add(record)
+        
+    db.session.commit()
+    
+    log_action(f"Manually marked {status} for Employee {emp.employee_id} on {date_str}", request.user_id)
+    return jsonify(record.to_dict()), 200
+
+@attendance_bp.route('/api/attendance/<int:record_id>', methods=['DELETE'])
+@token_required
+@api_role_required('Super Admin', 'HR Manager')
+def api_delete_attendance(record_id):
+    """Delete an attendance record"""
+    record = Attendance.query.get_or_404(record_id)
+    emp_code = record.employee.employee_id if record.employee else 'Unknown'
+    date_str = record.date.isoformat()
+    
+    db.session.delete(record)
+    db.session.commit()
+    
+    log_action(f"Deleted attendance record for Employee {emp_code} on {date_str}", request.user_id)
+    return jsonify({'message': 'Attendance record deleted successfully'}), 200
