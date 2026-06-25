@@ -7,55 +7,63 @@
 <!-- Metrics Cards Row -->
 <div class="row g-4 mb-4">
     <div class="col-12 col-md-6 col-lg-3">
-        <div class="glass-card d-flex align-items-center gap-3">
-            <div class="widget-icon bg-opacity-10 bg-primary text-primary">
-                <i class="bi bi-people-fill"></i>
+        <a href="{{ url_for('employee.list_view') }}" style="color: var(--text-primary); text-decoration: none;" class="d-block">
+            <div class="glass-card d-flex align-items-center gap-3 h-100">
+                <div class="widget-icon bg-opacity-10 bg-primary text-primary">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block">Total Headcount</span>
+                    <h3 class="mb-0 font-weight-bold">{{ total_employees }}</h3>
+                    <span class="text-success small"><i class="bi bi-arrow-up"></i> {{ active_employees }} Active</span>
+                </div>
             </div>
-            <div>
-                <span class="text-muted small d-block">Total Headcount</span>
-                <h3 class="mb-0 font-weight-bold">{{ total_employees }}</h3>
-                <span class="text-success small"><i class="bi bi-arrow-up"></i> {{ active_employees }} Active</span>
-            </div>
-        </div>
+        </a>
     </div>
     
     <div class="col-12 col-md-6 col-lg-3">
-        <div class="glass-card d-flex align-items-center gap-3">
-            <div class="widget-icon bg-opacity-10 bg-success text-success">
-                <i class="bi bi-check-circle-fill"></i>
+        <a href="{{ url_for('attendance.attendance_view') }}" style="color: var(--text-primary); text-decoration: none;" class="d-block">
+            <div class="glass-card d-flex align-items-center gap-3 h-100">
+                <div class="widget-icon bg-opacity-10 bg-success text-success">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block">Today's Attendance</span>
+                    <h3 class="mb-0 font-weight-bold">{{ today_present }} Present</h3>
+                    <span class="text-muted small">{{ today_leave }} On Leave / {{ today_absent }} Absent</span>
+                </div>
             </div>
-            <div>
-                <span class="text-muted small d-block">Today's Attendance</span>
-                <h3 class="mb-0 font-weight-bold">{{ today_present }} Present</h3>
-                <span class="text-muted small">{{ today_leave }} On Leave / {{ today_absent }} Absent</span>
-            </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-12 col-md-6 col-lg-3">
-        <div class="glass-card d-flex align-items-center gap-3">
-            <div class="widget-icon bg-opacity-10 bg-warning text-warning">
-                <i class="bi bi-calendar-check-fill"></i>
+        <a href="{{ url_for('leave.list_view') }}" style="color: var(--text-primary); text-decoration: none;" class="d-block">
+            <div class="glass-card d-flex align-items-center gap-3 h-100">
+                <div class="widget-icon bg-opacity-10 bg-warning text-warning">
+                    <i class="bi bi-calendar-check-fill"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block">Pending Approvals</span>
+                    <h3 class="mb-0 font-weight-bold">{{ pending_leaves }}</h3>
+                    <span class="text-danger small">Leave Applications</span>
+                </div>
             </div>
-            <div>
-                <span class="text-muted small d-block">Pending Approvals</span>
-                <h3 class="mb-0 font-weight-bold">{{ pending_leaves }}</h3>
-                <span class="text-danger small">Leave Applications</span>
-            </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-12 col-md-6 col-lg-3">
-        <div class="glass-card d-flex align-items-center gap-3">
-            <div class="widget-icon bg-opacity-10 bg-info text-info">
-                <i class="bi bi-building-fill"></i>
+        <a href="{{ url_for('department.list_view') }}" style="color: var(--text-primary); text-decoration: none;" class="d-block">
+            <div class="glass-card d-flex align-items-center gap-3 h-100">
+                <div class="widget-icon bg-opacity-10 bg-info text-info">
+                    <i class="bi bi-building-fill"></i>
+                </div>
+                <div>
+                    <span class="text-muted small d-block">Total Departments</span>
+                    <h3 class="mb-0 font-weight-bold">{{ departments_count }}</h3>
+                    <span class="text-muted small">Active divisions</span>
+                </div>
             </div>
-            <div>
-                <span class="text-muted small d-block">Total Departments</span>
-                <h3 class="mb-0 font-weight-bold">{{ departments_count }}</h3>
-                <span class="text-muted small">Active divisions</span>
-            </div>
-        </div>
+        </a>
     </div>
 </div>
 
@@ -127,10 +135,10 @@
             <div class="chat-container d-flex flex-column" id="chatContainer">
                 <div class="chat-bubble bot">
                     Hello! I am your AI assistant. You can ask me questions about company stats, e.g.:
-                    <ul>
-                        <li>"Who joined this month?"</li>
-                        <li>"Top performers?"</li>
-                        <li>"Employees absent today?"</li>
+                    <ul class="mb-0 mt-2 list-unstyled d-flex flex-wrap gap-2">
+                        <li><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-2 cursor-pointer suggest-query">Who joined this month?</span></li>
+                        <li><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-2 cursor-pointer suggest-query">Top performers?</span></li>
+                        <li><span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 rounded-pill px-3 py-2 cursor-pointer suggest-query">Employees absent today?</span></li>
                     </ul>
                 </div>
             </div>
@@ -381,6 +389,14 @@
         btnSend.addEventListener("click", sendMessage);
         chatInput.addEventListener("keypress", (e) => {
             if (e.key === "Enter") sendMessage();
+        });
+
+        // Handle suggestion clicks
+        document.querySelectorAll(".suggest-query").forEach(item => {
+            item.addEventListener("click", () => {
+                chatInput.value = item.innerText.trim();
+                sendMessage();
+            });
         });
     }
 

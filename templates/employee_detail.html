@@ -35,7 +35,11 @@
                 </div>
                 <div class="d-flex justify-content-between mb-2">
                     <span class="text-muted small">Status:</span>
+                    {% if employee.status == 'Inactive' %}
+                    <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill">{{ employee.status }}</span>
+                    {% else %}
                     <span class="badge bg-success bg-opacity-10 text-success rounded-pill">{{ employee.status or 'Active' }}</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -81,7 +85,7 @@
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Last Name</label>
-                                <input type="text" class="form-control" name="last_name" value="{{ employee.full_name.split(' ')[1] if employee.full_name and len(employee.full_name.split(' ')) > 1 else '' }}">
+                                <input type="text" class="form-control" name="last_name" value="{{ employee.full_name.split(' ')[1] if employee.full_name and employee.full_name.split(' ')|length > 1 else '' }}">
                             </div>
                             <div class="col-12 col-sm-6">
                                 <label class="form-label small font-weight-bold">Email Address</label>

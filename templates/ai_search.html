@@ -163,7 +163,7 @@
 
                     let html = "";
                     employees.forEach(emp => {
-                        const statusBadge = emp.active_status 
+                        const statusBadge = emp.status === 'Active' 
                             ? '<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2">Active</span>'
                             : '<span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-2">Inactive</span>';
                         

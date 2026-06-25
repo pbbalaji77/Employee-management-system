@@ -22,8 +22,8 @@ def api_list_reviews():
     
     query = PerformanceReview.query
     
-    if request.user_role == 'Employee':
-        query = query.filter(PerformanceReview.employee_id == request.employee_id)
+    if getattr(request, 'user_role', None) == 'Employee':
+        query = query.filter(PerformanceReview.employee_id == getattr(request, 'employee_id', None))
     elif employee_id:
         query = query.filter(PerformanceReview.employee_id == int(employee_id))
         
@@ -49,7 +49,7 @@ def api_create_review():
         return jsonify({'message': 'Missing employee_id, rating, or review_period'}), 400
         
     emp = Employee.query.get_or_404(emp_id)
-    reviewer_id = request.employee_id if request.employee_id else 1
+    reviewer_id = getattr(request, 'employee_id', None)
     
     review = PerformanceReview(
         employee_id=emp.id,
@@ -73,7 +73,7 @@ def api_append_employee_feedback(review_id):
     review = PerformanceReview.query.get_or_404(review_id)
     
     # Check authorization (employee responding to their own review)
-    if request.user_role == 'Employee' and request.employee_id != review.employee_id:
+    if getattr(request, 'user_role', None) == 'Employee' and getattr(request, 'employee_id', None) != review.employee_id:
         return jsonify({'message': 'Access forbidden'}), 403
         
     data = request.get_json() or {}

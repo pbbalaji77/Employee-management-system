@@ -237,7 +237,7 @@ class PerformanceReview(db.Model):
             'goal_achievement': self.goal_achievement,
             'manager_feedback': self.manager_feedback,
             'reviewer_id': self.reviewer_id,
-            'reviewer_name': reviewer.full_name if reviewer else "System Admin",
+            'reviewer_name': reviewer.full_name if reviewer else "HR Manager",
             'employee_feedback': self.employee_feedback,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

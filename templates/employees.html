@@ -236,6 +236,13 @@
                             </select>
                         </div>
                         <div class="col-12 col-sm-6">
+                            <label class="form-label font-weight-bold">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6">
                             <label class="form-label font-weight-bold">Aadhaar Card Number</label>
                             <input type="text" class="form-control" name="aadhaar_number">
                         </div>
@@ -384,7 +391,7 @@
 
         let html = "";
         employees.forEach(emp => {
-            const statusBadge = emp.active_status 
+            const statusBadge = emp.status === 'Active' 
                 ? '<span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">Active</span>'
                 : '<span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3">Inactive</span>';
             const isChecked = selectedIds.includes(emp.id) ? "checked" : "";

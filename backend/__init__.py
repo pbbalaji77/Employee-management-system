@@ -39,6 +39,7 @@ def create_app(config_name=None):
         if 'user_id' not in session:
             try:
                 from backend.models import HRUser
+                from backend.auth import generate_jwt_token
                 hr = HRUser.query.first()
                 if hr:
                     session['user_id'] = hr.id
@@ -46,7 +47,17 @@ def create_app(config_name=None):
                     session['email'] = hr.email
                     session['full_name'] = hr.username or 'HR Manager'
                     session['profile_photo'] = 'static/img/default-profile.png'
+                    session['jwt_token'] = generate_jwt_token(hr)
             except Exception as e:
+                pass
+        elif 'jwt_token' not in session:
+            try:
+                from backend.models import HRUser
+                from backend.auth import generate_jwt_token
+                hr = HRUser.query.get(session['user_id'])
+                if hr:
+                    session['jwt_token'] = generate_jwt_token(hr)
+            except Exception:
                 pass
 
     # Context processors to share variables in HTML views

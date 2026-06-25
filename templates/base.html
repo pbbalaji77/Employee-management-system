@@ -13,7 +13,7 @@
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
     <!-- Custom Glassmorphism Styles -->
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}?v=1.0.1" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -217,15 +217,6 @@
     <!-- Core Application Javascripts -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
-        // Sidebar responsive toggler
-        const sidebar = document.getElementById("sidebar");
-        const toggle = document.getElementById("sidebarToggle");
-        if (toggle && sidebar) {
-            toggle.addEventListener("click", () => {
-                sidebar.classList.toggle("active");
-            });
-        }
-        
         // Push JWT Token to local storage on page loads if needed (useful for API auth bridge)
         {% if 'jwt_token' in session %}
             localStorage.setItem("jwt_token", "{{ session.jwt_token }}");

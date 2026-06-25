@@ -7,11 +7,12 @@
 <!-- Leave Balances Widgets Row -->
 <div class="row g-4 mb-4">
     {% for l_type, b in balances.items() %}
+    {% set key = l_type.replace(' ', '_') %}
     <div class="col-6 col-sm-4 col-md-3 col-lg">
         <div class="glass-card text-center py-3">
             <span class="text-muted small d-block mb-1">{{ l_type }}</span>
-            <h3 class="mb-0 font-weight-bold text-primary">{{ b.remaining }}</h3>
-            <span class="text-muted small" style="font-size: 0.75rem;">Taken: {{ b.taken }} / Limit: {{ b.limit }}</span>
+            <h3 class="mb-0 font-weight-bold text-primary" id="rem_{{ key }}">{{ b.remaining }}</h3>
+            <span class="text-muted small" style="font-size: 0.75rem;" id="det_{{ key }}">Taken: {{ b.taken }} / Limit: {{ b.limit }}</span>
         </div>
     </div>
     {% endfor %}
@@ -23,6 +24,14 @@
         <div class="glass-card">
             <h5 class="font-weight-bold mb-3"><i class="bi bi-calendar-plus-fill text-primary me-2"></i>Apply for Leave</h5>
             <form id="applyLeaveForm">
+                <div class="mb-3">
+                    <label class="form-label small font-weight-bold">Select Employee</label>
+                    <select class="form-select" name="employee_id" id="applyEmployeeId" required onchange="updateSelectedEmployeeBalances()">
+                        {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.full_name }} ({{ emp.employee_id }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="mb-3">
                     <label class="form-label small font-weight-bold">Leave Type</label>
                     <select class="form-select" name="leave_type" required>
@@ -57,7 +66,7 @@
             <!-- Nav Tabs -->
             <ul class="nav nav-tabs border-bottom mb-3" id="leaveTabs">
                 <li class="nav-item">
-                    <button class="nav-link active font-weight-bold" id="myLeavesTab" data-bs-toggle="tab" data-bs-target="#myLeavesPanel">My Applications</button>
+                    <button class="nav-link active font-weight-bold" id="myLeavesTab" data-bs-toggle="tab" data-bs-target="#myLeavesPanel">All Applications</button>
                 </li>
                 {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
                 <li class="nav-item">
@@ -70,12 +79,13 @@
             </ul>
 
             <div class="tab-content">
-                <!-- My Applications Panel -->
+                <!-- All Applications Panel -->
                 <div class="tab-pane fade show active" id="myLeavesPanel">
                     <div class="table-responsive">
                         <table class="table custom-table align-middle text-center">
                             <thead>
                                 <tr>
+                                    <th>Employee</th>
                                     <th>Leave Type</th>
                                     <th>Start Date</th>
                                     <th>End Date</th>
@@ -85,7 +95,7 @@
                             </thead>
                             <tbody id="myLeavesTableBody">
                                 <tr>
-                                    <td colspan="5" class="text-muted py-3">Loading leaves history...</td>
+                                    <td colspan="6" class="text-muted py-3">Loading leaves history...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -129,6 +139,7 @@
         {% if session.role_name in ['Super Admin', 'HR Manager', 'Team Lead'] %}
         loadPendingApprovals();
         {% endif %}
+        updateSelectedEmployeeBalances();
 
         // Form apply handler
         const applyForm = document.getElementById("applyLeaveForm");
@@ -136,6 +147,7 @@
             applyForm.addEventListener("submit", async (e) => {
                 e.preventDefault();
                 const payload = {
+                    employee_id: applyForm.employee_id.value,
                     leave_type: applyForm.leave_type.value,
                     start_date: applyForm.start_date.value,
                     end_date: applyForm.end_date.value,
@@ -152,6 +164,7 @@
                         showToast("Leave request submitted successfully!", "success");
                         applyForm.reset();
                         loadMyLeaves();
+                        updateSelectedEmployeeBalances();
                         // Reload balances row (simulate reloading page after timeout)
                         setTimeout(() => location.reload(), 1500);
                     } else {
@@ -164,6 +177,25 @@
         }
     });
 
+    async function updateSelectedEmployeeBalances() {
+        const empId = document.getElementById("applyEmployeeId").value;
+        if (!empId) return;
+        try {
+            const res = await apiRequest(`/api/leaves/balances?employee_id=${empId}`);
+            if (!res.ok) return;
+            const balances = await res.json();
+            for (const [lType, b] of Object.entries(balances)) {
+                const key = lType.replace(/ /g, '_');
+                const remEl = document.getElementById(`rem_${key}`);
+                const detEl = document.getElementById(`det_${key}`);
+                if (remEl) remEl.innerText = b.remaining;
+                if (detEl) detEl.innerText = `Taken: ${b.taken} / Limit: ${b.limit}`;
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
     async function loadMyLeaves() {
         try {
             const res = await apiRequest("/api/leaves");
@@ -174,7 +206,7 @@
             if (!tbody) return;
 
             if (leaves.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-muted py-3">No leaves logged.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-muted py-3">No leaves logged.</td></tr>';
                 return;
             }
 
@@ -188,6 +220,12 @@
                 
                 html += `
                     <tr>
+                        <td>
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <span class="font-weight-bold text-dark">${l.employee_name || 'N/A'}</span>
+                                <span class="badge bg-light text-muted small">${l.employee_code || 'N/A'}</span>
+                            </div>
+                        </td>
                         <td><span class="font-weight-bold text-dark">${l.leave_type}</span></td>
                         <td>${l.start_date}</td>
                         <td>${l.end_date}</td>

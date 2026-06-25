@@ -15,6 +15,14 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const sidebarToggle = document.getElementById("sidebarToggle");
+    const sidebarContainer = document.querySelector(".sidebar-container");
+    if (sidebarToggle && sidebarContainer) {
+        sidebarToggle.addEventListener("click", () => {
+            sidebarContainer.classList.toggle("active");
+        });
+    }
+
     // Initialize check-in / check-out button handlers
     initAttendanceButtons();
 

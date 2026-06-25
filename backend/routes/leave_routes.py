@@ -52,7 +52,10 @@ def calculate_leave_balances(employee_id):
 @leave_bp.route('/leaves')
 @login_required
 def list_view():
-    return render_template('leaves.html')
+    employees = Employee.query.filter_by(status='Active').all()
+    first_emp = Employee.query.filter_by(status='Active').first()
+    balances = calculate_leave_balances(first_emp.id) if first_emp else {}
+    return render_template('leaves.html', employees=employees, balances=balances)
 
 # ----------------- REST APIs -----------------
 
