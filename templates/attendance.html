@@ -109,6 +109,9 @@
                         <label for="markEmployeeId" class="form-label font-weight-bold" style="color: var(--text-primary);">Select Employee</label>
                         <select class="form-select" id="markEmployeeId" required>
                             <option value="">-- Choose Employee --</option>
+                            {% if session.role_name in ['Super Admin', 'HR Manager'] %}
+                            <option value="all">-- All Active Employees --</option>
+                            {% endif %}
                             {% for emp in employees %}
                             <option value="{{ emp.id }}">{{ emp.employee_id }} - {{ emp.full_name }}</option>
                             {% endfor %}
@@ -335,7 +338,7 @@
         const checkOut = document.getElementById("markCheckOut").value;
         
         const payload = {
-            employee_id: parseInt(employeeId),
+            employee_id: employeeId === 'all' ? 'all' : parseInt(employeeId),
             date: dateVal,
             status: status
         };

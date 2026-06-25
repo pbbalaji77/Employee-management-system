@@ -167,8 +167,6 @@ def api_mark_attendance():
     if not emp_id or not date_str or not status:
         return jsonify({'message': 'employee_id, date, and status are required'}), 400
         
-    emp = Employee.query.get_or_404(emp_id)
-    
     try:
         log_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
@@ -177,9 +175,16 @@ def api_mark_attendance():
     if status not in ['Present', 'Absent', 'Half Day', 'Leave']:
         return jsonify({'message': 'Invalid status. Choose Present, Absent, Half Day, or Leave'}), 400
 
-    # Check if record already exists for this date and employee
-    record = Attendance.query.filter_by(employee_id=emp.id, date=log_date).first()
-    
+    # Determine employees list
+    if emp_id == 'all':
+        employees_to_mark = Employee.query.filter_by(status='Active').all()
+    else:
+        try:
+            emp_id_int = int(emp_id)
+        except ValueError:
+            return jsonify({'message': 'Invalid employee_id value'}), 400
+        employees_to_mark = [Employee.query.get_or_404(emp_id_int)]
+
     check_in_time = None
     check_out_time = None
     working_h = 0.0
@@ -208,31 +213,37 @@ def api_mark_attendance():
         if working_h > 8.0:
             overtime_h = round(working_h - 8.0, 2)
             working_h = 8.0
-            
-    if record:
-        # Update existing record
-        record.status = status
-        record.check_in = check_in_time
-        record.check_out = check_out_time
-        record.working_hours = working_h
-        record.overtime_hours = overtime_h
-    else:
-        # Create new record
-        record = Attendance(
-            employee_id=emp.id,
-            date=log_date,
-            check_in=check_in_time,
-            check_out=check_out_time,
-            working_hours=working_h,
-            overtime_hours=overtime_h,
-            status=status
-        )
-        db.session.add(record)
+
+    for emp in employees_to_mark:
+        record = Attendance.query.filter_by(employee_id=emp.id, date=log_date).first()
+        if record:
+            # Update existing record
+            record.status = status
+            record.check_in = check_in_time
+            record.check_out = check_out_time
+            record.working_hours = working_h
+            record.overtime_hours = overtime_h
+        else:
+            # Create new record
+            record = Attendance(
+                employee_id=emp.id,
+                date=log_date,
+                check_in=check_in_time,
+                check_out=check_out_time,
+                working_hours=working_h,
+                overtime_hours=overtime_h,
+                status=status
+            )
+            db.session.add(record)
         
     db.session.commit()
     
-    log_action(f"Manually marked {status} for Employee {emp.employee_id} on {date_str}", request.user_id)
-    return jsonify(record.to_dict()), 200
+    emp_desc = "All Active Employees" if emp_id == 'all' else f"Employee {employees_to_mark[0].employee_id}"
+    log_action(f"Manually marked {status} for {emp_desc} on {date_str}", request.user_id)
+    return jsonify({
+        'message': f'Attendance marked as {status} for {len(employees_to_mark)} employees.',
+        'count': len(employees_to_mark)
+    }), 200
 
 @attendance_bp.route('/api/attendance/<int:record_id>', methods=['DELETE'])
 @token_required
