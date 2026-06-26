@@ -50,30 +50,10 @@ def token_required(f):
                 token = auth_header.split(" ")[1]
         
         if not token:
-            try:
-                from backend.models import HRUser
-                hr = HRUser.query.first()
-                if hr:
-                    request.user_id = hr.id
-                    request.user_email = hr.email
-                    request.user_role = 'HR Manager'
-                    return f(*args, **kwargs)
-            except Exception:
-                pass
             return jsonify({'message': 'Authorization Token is missing!'}), 401
             
         decoded_payload = decode_jwt_token(token)
         if isinstance(decoded_payload, str):
-            try:
-                from backend.models import HRUser
-                hr = HRUser.query.first()
-                if hr:
-                    request.user_id = hr.id
-                    request.user_email = hr.email
-                    request.user_role = 'HR Manager'
-                    return f(*args, **kwargs)
-            except Exception:
-                pass
             return jsonify({'message': decoded_payload}), 401
             
         # Attach decoded data to request context

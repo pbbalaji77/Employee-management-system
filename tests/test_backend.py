@@ -82,7 +82,7 @@ class EMSTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 401)
 
     def test_employee_creation_and_jwt_guard(self):
-        """Verify JWT protection and employee CRUD creation endpoints (with auth bypass)"""
+        """Verify JWT protection and employee CRUD creation endpoints"""
         payload = {
             'email': 'new_candidate@test.com',
             'full_name': 'Candidate One',
@@ -92,10 +92,16 @@ class EMSTestCase(unittest.TestCase):
             'joining_date': '2026-06-01'
         }
 
-        # POST without auth header should succeed because we bypassed login/signin modules
+        # 1. POST without auth header should fail with 401
         res = self.client.post('/api/employees', json=payload)
-        self.assertEqual(res.status_code, 201)
-        data = json.loads(res.data)
+        self.assertEqual(res.status_code, 401)
+
+        # 2. POST with valid auth header should succeed with 201
+        hr_token = self.get_jwt_token('hr@test.com', 'HrPass123')
+        headers = {'Authorization': f'Bearer {hr_token}'}
+        res_with_auth = self.client.post('/api/employees', json=payload, headers=headers)
+        self.assertEqual(res_with_auth.status_code, 201)
+        data = json.loads(res_with_auth.data)
         self.assertEqual(data['full_name'], 'Candidate One')
         self.assertEqual(data['email'], 'new_candidate@test.com')
         self.assertTrue(data['employee_id'].startswith('EMP'))

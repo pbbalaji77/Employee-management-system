@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Enterprise EMS{% endblock %}</title>
+    <title>{% block title %}{{ session.get('company_name', 'Enterprise EMS') }}{% endblock %}</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +25,7 @@
     <div class="sidebar-container" id="sidebar">
         <div class="sidebar-brand">
             <i class="bi bi-rocket-takeoff-fill text-info"></i>
-            <span>Enterprise EMS</span>
+            <span>{{ session.get('company_name', 'Enterprise EMS') }}</span>
         </div>
         <ul class="sidebar-menu">
             <li class="sidebar-item {% if request.endpoint == 'auth.dashboard_view' %}active{% endif %}">

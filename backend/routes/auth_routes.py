@@ -16,7 +16,8 @@ def index():
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login_view():
-    return redirect(url_for('auth.dashboard_view'))
+    if 'user_id' in session:
+        return redirect(url_for('auth.dashboard_view'))
         
     if request.method == 'POST':
         email = request.form.get('email')
@@ -31,6 +32,7 @@ def login_view():
             session['jwt_token'] = generate_jwt_token(user)
             session['employee_id'] = None
             session['full_name'] = user.username or "HR Manager"
+            session['company_name'] = user.company_name or "Enterprise EMS"
             session['profile_photo'] = 'static/img/default-profile.png'
                 
             if remember:
@@ -45,6 +47,45 @@ def login_view():
             flash('Invalid email or password.', 'danger')
             
     return render_template('login.html')
+
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register_view():
+    if 'user_id' in session:
+        return redirect(url_for('auth.dashboard_view'))
+        
+    if request.method == 'POST':
+        company_name = request.form.get('company_name')
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        if not company_name or not username or not email or not password:
+            flash('All fields are required.', 'danger')
+            return render_template('register.html')
+            
+        # Check if username or email already exists
+        existing_user = HRUser.query.filter((HRUser.email == email) | (HRUser.username == username)).first()
+        if existing_user:
+            flash('Username or email is already registered.', 'danger')
+            return render_template('register.html')
+            
+        try:
+            new_user = HRUser(
+                username=username,
+                email=email,
+                company_name=company_name
+            )
+            new_user.set_password(password)
+            db.session.add(new_user)
+            db.session.commit()
+            
+            flash('Company registered successfully! Please log in.', 'success')
+            return redirect(url_for('auth.login_view'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error registering company: {e}', 'danger')
+            
+    return render_template('register.html')
 
 @auth_bp.route('/logout')
 def logout_view():

@@ -8,6 +8,14 @@ app = create_app()
 with app.app_context():
     try:
         db.create_all()
+        # Self-healing migration for company_name column
+        from sqlalchemy import text
+        try:
+            db.session.execute(text("ALTER TABLE hr_users ADD COLUMN company_name VARCHAR(100)"))
+            db.session.commit()
+            print("Database migrated successfully (added company_name to hr_users).")
+        except Exception:
+            db.session.rollback()
         print("Database tables initialized successfully.")
     except Exception as e:
         print(f"Error initializing database tables: {e}")

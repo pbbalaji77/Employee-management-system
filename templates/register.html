@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Enterprise EMS</title>
+    <title>Register Company - Enterprise EMS</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +23,7 @@
             margin: 0;
             padding: 1.5rem;
         }
-        .login-card {
+        .register-card {
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(16px) saturate(180%);
             -webkit-backdrop-filter: blur(16px) saturate(180%);
@@ -31,7 +31,7 @@
             border-radius: 20px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
             width: 100%;
-            max-width: 420px;
+            max-width: 450px;
             padding: 2.5rem;
             color: #f8fafc;
         }
@@ -64,13 +64,13 @@
 </head>
 <body>
 
-    <div class="login-card">
+    <div class="register-card">
         <div class="text-center mb-4">
             <div class="mb-3 d-inline-block p-3 rounded-circle" style="background: rgba(59, 130, 246, 0.2);">
-                <i class="bi bi-rocket-takeoff text-info" style="font-size: 2.5rem;"></i>
+                <i class="bi bi-building text-info" style="font-size: 2.5rem;"></i>
             </div>
-            <h3 class="font-weight-bold mb-1">Enterprise EMS</h3>
-            <p class="text-muted small">Sign in to your workplace portal</p>
+            <h3 class="font-weight-bold mb-1">Register Company</h3>
+            <p class="text-muted small">Create an organization account to get started</p>
         </div>
 
         <!-- Flash Messages -->
@@ -84,35 +84,43 @@
             {% endif %}
         {% endwith %}
 
-        <form action="{{ url_for('auth.login_view') }}" method="POST">
+        <form action="{{ url_for('auth.register_view') }}" method="POST">
             <div class="mb-3">
-                <label class="form-label small font-weight-bold">Email Address</label>
+                <label class="form-label small font-weight-bold">Company / Organization Name</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0 border-white border-opacity-15 text-muted"><i class="bi bi-building-fill"></i></span>
+                    <input type="text" class="form-control border-start-0" name="company_name" placeholder="e.g. Acme Corporation" required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small font-weight-bold">HR Admin Username</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0 border-white border-opacity-15 text-muted"><i class="bi bi-person-fill"></i></span>
+                    <input type="text" class="form-control border-start-0" name="username" placeholder="e.g. admin_acme" required>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small font-weight-bold">Admin Email Address</label>
                 <div class="input-group">
                     <span class="input-group-text bg-transparent border-end-0 border-white border-opacity-15 text-muted"><i class="bi bi-envelope"></i></span>
-                    <input type="email" class="form-control border-start-0" name="email" placeholder="name@company.com" required>
+                    <input type="email" class="form-control border-start-0" name="email" placeholder="hr@company.com" required>
                 </div>
             </div>
             
-            <div class="mb-3">
-                <div class="d-flex justify-content-between mb-1">
-                    <label class="form-label small font-weight-bold mb-0">Password</label>
-                    <a href="{{ url_for('auth.forgot_password_view') }}" class="text-info small text-decoration-none">Forgot Password?</a>
-                </div>
+            <div class="mb-4">
+                <label class="form-label small font-weight-bold">Password</label>
                 <div class="input-group">
                     <span class="input-group-text bg-transparent border-end-0 border-white border-opacity-15 text-muted"><i class="bi bi-shield-lock"></i></span>
                     <input type="password" class="form-control border-start-0" name="password" placeholder="••••••••" required>
                 </div>
             </div>
 
-            <div class="mb-4 form-check">
-                <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                <label class="form-check-label small text-muted" for="remember">Remember me on this device</label>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 mb-3">Sign In</button>
+            <button type="submit" class="btn btn-primary w-100 mb-3">Register Company</button>
             <div class="text-center">
-                <span class="small text-muted">Don't have an account? </span>
-                <a href="{{ url_for('auth.register_view') }}" class="text-info small text-decoration-none font-weight-bold">Register New Company</a>
+                <span class="small text-muted">Already have a company profile? </span>
+                <a href="{{ url_for('auth.login_view') }}" class="text-info small text-decoration-none font-weight-bold">Sign In</a>
             </div>
         </form>
     </div>
